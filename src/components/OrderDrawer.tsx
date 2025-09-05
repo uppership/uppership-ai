@@ -3,6 +3,32 @@ import { useEffect, useState } from "react";
 // OrderDrawer.tsx
 import type { OrderDetails } from "../types/order";
 
+// OrderDrawer.tsx (top of file, under imports)
+function normalizeTrackingNumbers(val: unknown): string[] {
+    if (!Array.isArray(val)) return [];
+    const KEYS = ['tracking_number', 'tracking', 'tracking_code', 'code', 'number', 'id'];
+    const out: string[] = [];
+  
+    for (const item of val as unknown[]) {
+      if (typeof item === 'string' || typeof item === 'number') {
+        out.push(String(item));
+        continue;
+      }
+      if (item && typeof item === 'object') {
+        for (const k of KEYS) {
+          const v = (item as Record<string, unknown>)[k];
+          if (typeof v === 'string' || typeof v === 'number') {
+            out.push(String(v));
+            break;
+          }
+        }
+      }
+    }
+    // dedupe + drop empties
+    return Array.from(new Set(out.filter(Boolean)));
+  }
+  
+
 
 export default function OrderDrawer({
   open, onClose, orderId, shop
@@ -30,6 +56,7 @@ export default function OrderDrawer({
 
   const o = data?.order;
   const items = data?.items || [];
+  const tn = normalizeTrackingNumbers(o?.tracking_numbers);
 
   return (
     <aside
@@ -79,8 +106,8 @@ export default function OrderDrawer({
             <div><span className="text-[#9aa4af]">Created:</span> {o?.created_at ? new Date(o.created_at).toLocaleString() : "—"}</div>
             <div><span className="text-[#9aa4af]">Delivered:</span> {o?.tracking_delivered_at ? new Date(o.tracking_delivered_at).toLocaleString() : "—"}</div>
             <div className="col-span-2">
-              <span className="text-[#9aa4af]">Tracking #:</span>{" "}
-              {o?.tracking_numbers?.length ? o.tracking_numbers.join(", ") : "—"}
+            <span className="text-[#9aa4af]">Tracking #:</span>{" "}
+            {tn.length ? tn.join(", ") : "—"}
             </div>
             <div className="col-span-2">
               <span className="text-[#9aa4af]">Last Update:</span> {o?.tracking_last_update || "—"}
