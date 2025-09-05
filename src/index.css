@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* src/index.css (or wherever your entry CSS lives) */
+@import "tailwindcss";
+/* your custom styles can go after this */
 
 /* global background if you want */
 html, body {
