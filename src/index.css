@@ -1,3 +1,76 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* global background if you want */
+html, body {
+  @apply bg-[#0b1117] text-white;
+}
+
+/* Reusable component classes */
+@layer components {
+  .card {
+    @apply rounded-xl border border-[#1d2733] shadow-lg bg-[#11161c];
+  }
+
+  .btn {
+    @apply inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733]
+           text-[#e7eef7] px-3 py-2 transition ease-in-out duration-150 bg-white/5;
+  }
+  .btn:hover {
+    @apply -translate-y-px border-[#2a3a4f];
+  }
+  .btn:disabled {
+    @apply opacity-60 cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-[#0d6efd] border-[#0d6efd] text-white;
+  }
+
+  .chip {
+    @apply border border-[#233041] text-[#d5e3f7] font-semibold rounded-full
+           transition ease-in-out duration-150 whitespace-nowrap px-3 py-1;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), #0f1722;
+  }
+
+  .chat-msg {
+    @apply flex gap-2 my-2;
+  }
+  .chat-msg.me {
+    @apply justify-end;
+  }
+
+  .chat-avatar {
+    @apply w-7 h-7 rounded-full flex items-center justify-center border border-[#1d2733] shrink-0 text-sm;
+    background:#0f1722; color:#cfe2ff;
+  }
+  .chat-avatar.ai {
+    background: radial-gradient(60% 60% at 50% 30%, #1a2a3f, #0f1824);
+    border-color:#233041; color:#9ad0ff;
+  }
+
+  .chat-bubble {
+    @apply border border-[#1d2733] px-3 py-2 rounded-lg shadow max-w-[85%];
+  }
+  .chat-bubble.ai {
+    background: linear-gradient(180deg, #121b26, #162233);
+  }
+  .chat-bubble.me {
+    background: linear-gradient(180deg, #10233b, #0d1a2b);
+  }
+
+  .typing {
+    @apply inline-flex items-center gap-1.5;
+  }
+  .typing .dot {
+    @apply w-1.5 h-1.5 rounded-full bg-[#7aa9e6];
+    animation: bounceDots 1.2s infinite ease-in-out;
+  }
+  .typing .dot:nth-child(2) { animation-delay:.15s }
+  .typing .dot:nth-child(3) { animation-delay:.3s }
+
+  @keyframes bounceDots {
+    0%,80%,100% { transform: translateY(0); opacity:.6; }
+    40% { transform: translateY(-4px); opacity:1; }
+  }
+}

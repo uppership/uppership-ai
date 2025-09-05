@@ -20,18 +20,12 @@ type Role = "me" | "ai";
 type Msg = { who: Role; text: string }; // raw markdown for ai, plain for me
 
 function renderMarkdownSafe(mdText: string) {
-  // TS still types as string | Promise<string> — cast to string since async=false
   const raw = marked.parse(mdText || "") as unknown as string;
-
   return DOMPurify.sanitize(raw, {
-    ALLOWED_TAGS: [
-      "a","p","br","strong","em","code","pre","blockquote","ul","ol","li","hr",
-      "table","thead","tbody","tfoot","tr","th","td"
-    ],
+    ALLOWED_TAGS: ["a","p","br","strong","em","code","pre","blockquote","ul","ol","li","hr","table","thead","tbody","tfoot","tr","th","td"],
     ALLOWED_ATTR: ["href","title","target","rel","colspan","rowspan","align"]
   }) as string;
 }
-
 
 export default function ChatPanel({ shop }: { shop: string }) {
   const LS_KEY = useMemo(() => `chatHistory:${shop}`, [shop]);
@@ -46,7 +40,6 @@ export default function ChatPanel({ shop }: { shop: string }) {
   const lastAskAtRef = useRef<number>(0);
   const slowHintTimer = useRef<number | null>(null);
 
-  // restore history
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -54,8 +47,7 @@ export default function ChatPanel({ shop }: { shop: string }) {
         setMessages(JSON.parse(raw));
         return;
       }
-    } catch {/*hello*/}
-    // first-run greeting
+    } catch {/*placeholder*/}
     setMessages([
       {
         who: "ai",
@@ -64,14 +56,12 @@ export default function ChatPanel({ shop }: { shop: string }) {
     ]);
   }, [LS_KEY, shop]);
 
-  // persist history
   useEffect(() => {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(messages.slice(-50)));
-    } catch {/*hello*/}
+    } catch {/*placeholder*/}
   }, [messages, LS_KEY]);
 
-  // auto scroll
   useEffect(() => {
     const el = chatboxRef.current;
     if (!el) return;
@@ -88,33 +78,56 @@ export default function ChatPanel({ shop }: { shop: string }) {
   function showTyping() {
     const el = chatboxRef.current;
     if (!el) return;
+
     const row = document.createElement("div");
-    row.className = "chat-msg ai";
+    row.className = "flex gap-2 my-2";
+
     const bubble = document.createElement("div");
-    bubble.className = "chat-bubble";
-    bubble.innerHTML = `<div class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+    bubble.className = [
+      "inline-block",
+      "max-w-[85%]",
+      "rounded-lg",
+      "border",
+      "border-[#1d2733]",
+      "px-3",
+      "py-2",
+      "shadow",
+      "bg-gradient-to-b",
+      "from-[#121b26]",
+      "to-[#162233]",
+    ].join(" ");
+
+    // typing dots with inline styles so no extra CSS file is needed
+    bubble.innerHTML = `
+      <div class="flex items-center gap-1.5">
+        <span style="width:6px;height:6px;border-radius:9999px;background:#7aa9e6;opacity:.7;display:inline-block;animation:bounceDots 1.2s infinite ease-in-out;"></span>
+        <span style="width:6px;height:6px;border-radius:9999px;background:#7aa9e6;opacity:.7;display:inline-block;animation:bounceDots 1.2s infinite ease-in-out .15s;"></span>
+        <span style="width:6px;height:6px;border-radius:9999px;background:#7aa9e6;opacity:.7;display:inline-block;animation:bounceDots 1.2s infinite ease-in-out .3s;"></span>
+      </div>
+    `;
+
     row.appendChild(bubble);
     el.appendChild(row);
     typingRef.current = row;
     el.scrollTop = el.scrollHeight;
   }
+
   function hideTyping() {
     const el = typingRef.current as HTMLElement | null;
     if (el && el.parentNode) el.parentNode.removeChild(el);
     typingRef.current = null;
   }
+
   function startSlowHint() {
     stopSlowHint();
     slowHintTimer.current = window.setTimeout(() => {
-      const el = typingRef.current as HTMLElement | null;
-      if (el) {
-        const hint = document.createElement("div");
-        hint.className = "fine";
-        hint.style.marginTop = "6px";
-        hint.textContent = "Still working… complex query. Thanks for your patience.";
-        const bubble = el.querySelector(".chat-bubble");
-        bubble?.appendChild(hint);
-      }
+      const row = typingRef.current as HTMLElement | null;
+      if (!row) return;
+      const hint = document.createElement("div");
+      hint.className = "mt-1 text-[0.78rem] text-[#9aa4af]";
+      hint.textContent = "Still working… complex query. Thanks for your patience.";
+      const bubble = row.querySelector("div.inline-block");
+      bubble?.appendChild(hint);
     }, 6000) as unknown as number;
   }
   function stopSlowHint() {
@@ -153,47 +166,72 @@ export default function ChatPanel({ shop }: { shop: string }) {
   }
 
   return (
-    <div className="card bg-[#11161c] border border-[#1d2733] rounded-xl shadow p-4 h-[80vh] flex flex-col">
+    <div className="bg-[#11161c] border border-[#1d2733] rounded-xl shadow p-4 h-[80vh] flex flex-col">
+      {/* keyframes (no config needed) */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes bounceDots {
+          0%,80%,100% { transform: translateY(0); opacity:.6; }
+          40% { transform: translateY(-4px); opacity:1; }
+        }
+      `}</style>
+
+      {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <h3 className="m-0 text-base font-semibold" id="panelTitle">💬 AI Co-Pilot</h3>
-        <button className="btn" onClick={() => setCollapsed((c) => !c)}>
+        <button
+          className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-expanded={!collapsed}
+          aria-controls="chatbox"
+        >
           {collapsed ? "➕ Show" : "➖ Hide"}
         </button>
       </div>
 
       {!collapsed && (
         <>
+          {/* Chatbox */}
           <div
             ref={chatboxRef}
             id="chatbox"
             className="mt-3 border border-[#1d2733] bg-[#0e141b] rounded-md p-3 overflow-y-auto"
             style={{ height: 360 }}
+            aria-live="polite"
           >
             {messages.map((m, i) => (
-              <div key={i} className={`chat-msg ${m.who === "me" ? "text-right" : ""}`}>
+              <div key={i} className={`flex gap-2 my-2 ${m.who === "me" ? "justify-end" : ""}`}>
                 <div
-                  className={`chat-bubble inline-block max-w-[85%] rounded-md border border-[#1d2733] p-2 ${
-                    m.who === "me" ? "bg-[#162233]" : "bg-[#121b26]"
-                  }`}
+                  className={[
+                    "inline-block",
+                    "max-w-[85%]",
+                    "rounded-lg",
+                    "border",
+                    "border-[#1d2733]",
+                    "px-3",
+                    "py-2",
+                    "shadow",
+                    m.who === "me"
+                      ? "bg-gradient-to-b from-[#10233b] to-[#0d1a2b]"
+                      : "bg-gradient-to-b from-[#121b26] to-[#162233]"
+                  ].join(" ")}
                 >
                   {m.who === "ai" ? (
-                    <div
-                      dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(m.text) }}
-                    />
+                    <div dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(m.text) }} />
                   ) : (
-                    m.text
+                    <div>{m.text}</div>
                   )}
+
                   {m.who === "ai" && (
-                    <button
-                      className="btn ml-2"
-                      onClick={() => {
-                        navigator.clipboard.writeText(m.text).then(() => {
-                          // quick UX nudge via alert-less feedback
-                        });
-                      }}
-                    >
-                      📋 Copy
-                    </button>
+                    <div className="mt-2">
+                      <button
+                        className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#9aa4af] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
+                        title="Copy response"
+                        onClick={() => navigator.clipboard.writeText(m.text)}
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -201,11 +239,12 @@ export default function ChatPanel({ shop }: { shop: string }) {
           </div>
 
           {/* Quick prompts */}
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
             {QUICK_PROMPTS.map((p) => (
               <button
                 key={p.label}
-                className="chip px-3 py-1 rounded-2xl bg-[#0f1722] border border-[#233041] text-sm"
+                className="border border-[#233041] text-[#d5e3f7] font-semibold rounded-full transition whitespace-nowrap px-3 py-1 hover:-translate-y-px"
+                style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.02), transparent), #0f1722" }}
                 onClick={() => ask(p.q)}
               >
                 {p.label}
@@ -216,20 +255,18 @@ export default function ChatPanel({ shop }: { shop: string }) {
           {/* Toolbar */}
           <div className="flex gap-2 mt-2">
             <button
-              className="btn"
+              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
               onClick={() => {
                 setMessages([]);
-                try { localStorage.removeItem(LS_KEY); } catch {/*hello*/}
+                try { localStorage.removeItem(LS_KEY); } catch {/*placeholder*/}
               }}
             >
               🧹 Clear
             </button>
             <button
-              className="btn"
+              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
               onClick={() => {
-                const text = messages
-                  .map((r) => `${r.who === "me" ? "You" : "Assistant"}: ${r.text}`)
-                  .join("\n\n");
+                const text = messages.map((r) => `${r.who === "me" ? "You" : "Assistant"}: ${r.text}`).join("\n\n");
                 navigator.clipboard.writeText(text);
               }}
             >
@@ -241,7 +278,7 @@ export default function ChatPanel({ shop }: { shop: string }) {
           <div className="flex gap-2 mt-2">
             <textarea
               rows={2}
-              className="flex-1 px-3 py-2 rounded-md border border-[#1d2733] bg-[#0e141b]"
+              className="flex-1 px-3 py-2 rounded-md border border-[#1d2733] bg-[#0e141b] outline-none focus:ring-0 focus:border-[#2a3a4f]"
               placeholder="Ask a question…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -250,11 +287,15 @@ export default function ChatPanel({ shop }: { shop: string }) {
                   e.preventDefault();
                   ask(input);
                 }
+                if ((e.key === "Enter") && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  ask(input);
+                }
               }}
               disabled={loading}
             />
             <button
-              className="btn bg-[#0d6efd] border-[#0d6efd] text-white px-4"
+              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#0d6efd] bg-[#0d6efd] text-white px-4 py-2 transition hover:brightness-105 disabled:opacity-60 disabled:cursor-not-allowed"
               onClick={() => ask(input)}
               disabled={loading}
             >
@@ -262,34 +303,26 @@ export default function ChatPanel({ shop }: { shop: string }) {
             </button>
           </div>
 
-          {/* Subtle loader overlay */}
+          {/* Loader overlay */}
           {loading && (
             <div
               className="fixed inset-0 flex items-center justify-center"
-              style={{
-                background: "rgba(8,12,18,0.62)",
-                backdropFilter: "saturate(120%) blur(4px)",
-                zIndex: 50,
-              }}
-              aria-hidden="false"
+              style={{ background: "rgba(8,12,18,0.62)", backdropFilter: "saturate(120%) blur(4px)", zIndex: 50 }}
               role="status"
+              aria-live="assertive"
             >
               <div className="bg-[#11161c] border border-[#1d2733] rounded-xl p-4 min-w-[260px] text-center shadow">
                 <div
                   className="mx-auto mb-2"
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    border: "3px solid #2a3a4f",
-                    borderTopColor: "#7ab7ff",
+                    width: 28, height: 28, borderRadius: "50%",
+                    border: "3px solid #2a3a4f", borderTopColor: "#7ab7ff",
                     animation: "spin 1s linear infinite",
                   }}
                 />
                 <div className="font-semibold">Thinking…</div>
                 <div className="text-sm text-[#9aa4af]">Analyzing demo data and preparing an answer</div>
               </div>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
         </>

@@ -1,6 +1,6 @@
 import Column from "./Column";
 
-const STATUSES = ["ordered", "picked", "packed", "shipped", "in_transit", "delivered", "exception"];
+const STATUSES = ["ordered", "shipped", "in_transit", "delivered", "exception"];
 
 export default function KanbanBoard({ shop }: { shop: string }) {
   return (
