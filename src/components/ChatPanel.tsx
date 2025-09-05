@@ -38,7 +38,6 @@ export default function ChatWidget({ shop }: { shop: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
   const chatboxRef = useRef<HTMLDivElement>(null);
   const typingRef = useRef<Node | null>(null);
   const lastAskAtRef = useRef<number>(0);
@@ -200,15 +199,6 @@ export default function ChatWidget({ shop }: { shop: string }) {
           <div className="flex items-center gap-2">
             <button
               className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-1.5 transition hover:-translate-y-px hover:border-[#2a3a4f]"
-              onClick={() => setCollapsed((c) => !c)}
-              aria-expanded={!collapsed}
-              aria-controls="chatbox"
-              title={collapsed ? "Show messages" : "Hide messages"}
-            >
-              {collapsed ? "➕ Show" : "➖ Hide"}
-            </button>
-            <button
-              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-1.5 transition hover:-translate-y-px hover:border-[#2a3a4f]"
               onClick={() => setIsOpen(false)}
               title="Minimize"
               aria-label="Minimize chat"
@@ -219,7 +209,6 @@ export default function ChatWidget({ shop }: { shop: string }) {
         </div>
 
         {/* Body */}
-        {!collapsed && (
           <div className="flex-1 flex flex-col p-4 gap-2 relative">
             {/* Chatbox */}
             <div
@@ -337,7 +326,6 @@ export default function ChatWidget({ shop }: { shop: string }) {
               </div>
             )}
           </div>
-        )}
       </aside>
     </>
   );
