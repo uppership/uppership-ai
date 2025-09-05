@@ -18,7 +18,7 @@ export default function OrderDrawer({
     if (!open || !orderId) return;
     setData(null);
     setLoading(true);
-    fetch(`/api/orders/${encodeURIComponent(orderId)}`)
+    fetch(`https://go.uppership.com/api/orders/${encodeURIComponent(orderId)}`)
       .then(r => r.json())
       .then(json => setData(json))
       .catch(() => setData(null))
@@ -143,7 +143,7 @@ export default function OrderDrawer({
               className="btn"
               onClick={async () => {
                 if (!o) return;
-                await fetch(`/api/orders/${encodeURIComponent(o.id)}/ignore`, { method: 'POST' });
+                await fetch(`https://go.uppership.com/api/orders/${encodeURIComponent(o.id)}/ignore`, { method: 'POST' });
                 // Optimistic UI
                 setData(cur => cur ? ({ ...cur, order: { ...cur.order, tracking_ignore: true } }) : cur);
               }}
