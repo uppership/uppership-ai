@@ -5,21 +5,21 @@ import ChatPanel from "../components/ChatPanel";
 export default function Dashboard({ shop }: { shop: string }) {
   return (
     <>
-      <header
-        className="sticky top-0 z-30 border-b border-[#1d2733] bg-[#0e141b] px-4 py-3"
-        style={{ paddingRight: "var(--chat-panel-width, 0px)" }}
-      >
-        <a href="/" className="flex items-center gap-2" aria-label="Go to dashboard home">
-          <img
-            src="/uppership-logo-dark.png"
-            alt="Uppership"
-            width={28}
-            height={28}
-            className="rounded-md"
-          />
-          <span className="text-sm sm:text-base font-semibold tracking-tight">Uppership</span>
-        </a>
-      </header>
+      <header className="sticky top-0 z-30 border-b border-[#1d2733] bg-[#0e141b] px-4 py-3"
+        style={{ paddingRight: "var(--chat-panel-width, 0px)" }}>
+      <a href="/" className="flex items-center" aria-label="Uppership">
+        <img
+          src="/uppership-logo-dark.png"
+          alt="Uppership"
+          width={1200}           // intrinsic size for correct aspect ratio
+          height={630}
+          className="h-7 sm:h-8 w-auto"  // 28px (mobile), 32px (sm+)
+          decoding="async"
+          fetchPriority="high"           // it’s in the header; load early
+        />
+      </a>
+    </header>
+
       <main
         className="transition-[padding-right] duration-200 ease-in-out
                    px-0"

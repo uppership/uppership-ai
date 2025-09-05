@@ -135,7 +135,6 @@ export default function OrderDrawer({
               <thead className="text-left text-[#9aa4af]">
                 <tr>
                   <th className="p-2">SKU</th>
-                  <th className="p-2">Title</th>
                   <th className="p-2">Ordered</th>
                   <th className="p-2">Fulfilled</th>
                   <th className="p-2">Remaining</th>
@@ -147,7 +146,6 @@ export default function OrderDrawer({
                   return (
                     <tr key={it.sku} className="border-t border-[#1d2733]">
                       <td className="p-2 font-mono">{it.sku}</td>
-                      <td className="p-2">{it.title || "—"}</td>
                       <td className="p-2">{it.ordered}</td>
                       <td className="p-2">{it.fulfilled}</td>
                       <td className="p-2">{remaining}</td>
