@@ -34,7 +34,7 @@ export default function KanbanBoard({ shop }: { shop: string }) {
     (async () => {
       try {
         // NOTE: this hits the public resolver you added
-        const url = `/public/packages/${encodeURIComponent(
+        const url = `https://go.uppership.com/public/packages/${encodeURIComponent(
           packageId
         )}/order?shop=${encodeURIComponent(shop)}`;
 
