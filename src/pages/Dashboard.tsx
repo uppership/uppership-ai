@@ -5,9 +5,21 @@ import ChatPanel from "../components/ChatPanel";
 export default function Dashboard({ shop }: { shop: string }) {
   return (
     <>
-      {/* This main container expands full width.
-          On large screens, when chat opens, we add right padding equal
-          to var(--chat-panel-width) so content never hides behind the panel. */}
+      <header
+        className="sticky top-0 z-30 border-b border-[#1d2733] bg-[#0e141b] px-4 py-3"
+        style={{ paddingRight: "var(--chat-panel-width, 0px)" }}
+      >
+        <a href="/" className="flex items-center gap-2" aria-label="Go to dashboard home">
+          <img
+            src="/uppership-logo-dark.png"
+            alt="Uppership"
+            width={28}
+            height={28}
+            className="rounded-md"
+          />
+          <span className="text-sm sm:text-base font-semibold tracking-tight">Uppership</span>
+        </a>
+      </header>
       <main
         className="transition-[padding-right] duration-200 ease-in-out
                    px-0"
