@@ -28,7 +28,7 @@ function renderMarkdownSafe(mdText: string) {
   }) as string;
 }
 
-export default function ChatPanel({ shop }: { shop: string }) {
+export default function ChatPanel({ shop, onOpenChange }: { shop: string; onOpenChange?: (open: boolean) => void; }) {
   const LS_KEY = useMemo(() => `chatHistory:${shop}`, [shop]);
   const API_URL = useMemo(() => `https://go.uppership.com/api/chat/${encodeURIComponent(shop)}`, [shop]);
 
@@ -44,6 +44,17 @@ export default function ChatPanel({ shop }: { shop: string }) {
   const typingRef  = useRef<Node | null>(null);
   const lastAskAtRef = useRef<number>(0);
   const slowHintTimer = useRef<number | null>(null);
+
+  //const PANEL_WIDTH_SM = 420; // px
+  const PANEL_WIDTH_LG = 500; // px
+
+  function applyChatInsets(open: boolean) {
+    // Default to lg width; CSS will clamp on small screens
+    const w = `${PANEL_WIDTH_LG}px`;
+    document.documentElement.style.setProperty("--chat-panel-width", open ? w : "0px");
+    document.documentElement.setAttribute("data-chat-open", open ? "true" : "false");
+    onOpenChange?.(open);
+  }
 
   // Init / persistence
   useEffect(() => {
@@ -174,7 +185,7 @@ export default function ChatPanel({ shop }: { shop: string }) {
         <Keyframes />
         <button
           aria-label="Open AI Co-Pilot chat"
-          onClick={() => setIsOpen(true)}
+          onClick={() => { setIsOpen(true); applyChatInsets(true); }}
           className="fixed bottom-4 right-4 z-40 rounded-full shadow-lg border border-[#1d2733] bg-[#0d6efd] text-white px-4 py-3 flex items-center gap-2"
           style={{ animation: "bubblePulse 3s ease-in-out infinite" }}
         >
@@ -189,6 +200,11 @@ export default function ChatPanel({ shop }: { shop: string }) {
   return (
     <>
       <Keyframes />
+      <style>{`
+        @media (max-width: 639px) { /* <sm */
+          :root { --chat-panel-width: 0px; } /* don't push content on mobile */
+        }
+      `}</style>
       <aside
         role="complementary"
         aria-label="AI Co-Pilot chat panel"
@@ -200,7 +216,7 @@ export default function ChatPanel({ shop }: { shop: string }) {
           <h3 className="m-0 text-base font-semibold">💬 AI Co-Pilot</h3>
           <button
             className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-1.5 transition hover:-translate-y-px hover:border-[#2a3a4f]"
-            onClick={() => setIsOpen(false)}
+            onClick={() => { setIsOpen(false); applyChatInsets(false); }}
             title="Minimize"
             aria-label="Minimize chat"
           >

@@ -1,18 +1,27 @@
+// Dashboard.tsx
 import KanbanBoard from "../components/KanbanBoard";
 import ChatPanel from "../components/ChatPanel";
 
 export default function Dashboard({ shop }: { shop: string }) {
   return (
-    <div className="p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {/* Left: Kanban spans 2 columns on large screens */}
-      <div className="lg:col-span-2">
+    <>
+      {/* This main container expands full width.
+          On large screens, when chat opens, we add right padding equal
+          to var(--chat-panel-width) so content never hides behind the panel. */}
+      <main
+        className="transition-[padding-right] duration-200 ease-in-out
+                   px-0"
+        style={{
+          // Mobile keeps full width; desktop uses the CSS var (0px when closed)
+          paddingRight: "var(--chat-panel-width, 0px)",
+        }}
+      >
         <KanbanBoard shop={shop} />
-      </div>
+      </main>
 
-      {/* Right: Chat */}
-      <div className="lg:col-span-1">
-        <ChatPanel shop={shop || "uppership-demo.myshopify.com"} />
-      </div>
-    </div>
+      {/* Floating chat (bubble + panel).
+          No need to lift state: it sets --chat-panel-width & data-chat-open. */}
+      <ChatPanel shop={shop || "uppership-demo.myshopify.com"} />
+    </>
   );
 }
