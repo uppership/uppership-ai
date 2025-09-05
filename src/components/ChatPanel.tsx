@@ -17,7 +17,7 @@ const QUICK_PROMPTS = [
 ];
 
 type Role = "me" | "ai";
-type Msg = { who: Role; text: string }; // raw markdown for ai, plain for me
+type Msg = { who: Role; text: string };
 
 function renderMarkdownSafe(mdText: string) {
   const raw = marked.parse(mdText || "") as unknown as string;
@@ -27,10 +27,14 @@ function renderMarkdownSafe(mdText: string) {
   }) as string;
 }
 
-export default function ChatPanel({ shop }: { shop: string }) {
+export default function ChatWidget({ shop }: { shop: string }) {
   const LS_KEY = useMemo(() => `chatHistory:${shop}`, [shop]);
   const API_URL = useMemo(() => `https://go.uppership.com/api/chat/${encodeURIComponent(shop)}`, [shop]);
 
+  // UI state for bubble vs panel
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Chat state (from your original)
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,6 +44,7 @@ export default function ChatPanel({ shop }: { shop: string }) {
   const lastAskAtRef = useRef<number>(0);
   const slowHintTimer = useRef<number | null>(null);
 
+  // --- init / persistence
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -47,7 +52,7 @@ export default function ChatPanel({ shop }: { shop: string }) {
         setMessages(JSON.parse(raw));
         return;
       }
-    } catch {/*placeholder*/}
+    } catch {/*noop*/}
     setMessages([
       {
         who: "ai",
@@ -57,16 +62,14 @@ export default function ChatPanel({ shop }: { shop: string }) {
   }, [LS_KEY, shop]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(messages.slice(-50)));
-    } catch {/*placeholder*/}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(messages.slice(-50))); } catch {/*noop*/}
   }, [messages, LS_KEY]);
 
   useEffect(() => {
     const el = chatboxRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages, loading]);
+  }, [messages, loading, isOpen]);
 
   function canAsk() {
     const now = Date.now();
@@ -84,20 +87,10 @@ export default function ChatPanel({ shop }: { shop: string }) {
 
     const bubble = document.createElement("div");
     bubble.className = [
-      "inline-block",
-      "max-w-[85%]",
-      "rounded-lg",
-      "border",
-      "border-[#1d2733]",
-      "px-3",
-      "py-2",
-      "shadow",
-      "bg-gradient-to-b",
-      "from-[#121b26]",
-      "to-[#162233]",
+      "inline-block","max-w-[85%]","rounded-lg","border","border-[#1d2733]","px-3","py-2","shadow",
+      "bg-gradient-to-b","from-[#121b26]","to-[#162233]"
     ].join(" ");
 
-    // typing dots with inline styles so no extra CSS file is needed
     bubble.innerHTML = `
       <div class="flex items-center gap-1.5">
         <span style="width:6px;height:6px;border-radius:9999px;background:#7aa9e6;opacity:.7;display:inline-block;animation:bounceDots 1.2s infinite ease-in-out;"></span>
@@ -111,13 +104,11 @@ export default function ChatPanel({ shop }: { shop: string }) {
     typingRef.current = row;
     el.scrollTop = el.scrollHeight;
   }
-
   function hideTyping() {
     const el = typingRef.current as HTMLElement | null;
     if (el && el.parentNode) el.parentNode.removeChild(el);
     typingRef.current = null;
   }
-
   function startSlowHint() {
     stopSlowHint();
     slowHintTimer.current = window.setTimeout(() => {
@@ -165,168 +156,189 @@ export default function ChatPanel({ shop }: { shop: string }) {
     }
   }
 
-  return (
-    <div className="bg-[#11161c] border border-[#1d2733] rounded-xl shadow p-4 h-[80vh] flex flex-col">
-      {/* keyframes (no config needed) */}
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes bounceDots {
-          0%,80%,100% { transform: translateY(0); opacity:.6; }
-          40% { transform: translateY(-4px); opacity:1; }
-        }
-      `}</style>
+  // --- styles (keyframes)
+  const Keyframes = () => (
+    <style>{`
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes bounceDots { 0%,80%,100% { transform: translateY(0); opacity:.6; } 40% { transform: translateY(-4px); opacity:1; } }
+      @keyframes bubblePulse { 0%,100%{ transform: translateZ(0) scale(1); } 50%{ transform: translateZ(0) scale(1.03); } }
+    `}</style>
+  );
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="m-0 text-base font-semibold" id="panelTitle">💬 AI Co-Pilot</h3>
+  // --- bubble (closed)
+  if (!isOpen) {
+    return (
+      <>
+        <Keyframes />
         <button
-          className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
-          onClick={() => setCollapsed((c) => !c)}
-          aria-expanded={!collapsed}
-          aria-controls="chatbox"
+          aria-label="Open AI Co-Pilot chat"
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-4 right-4 z-40 rounded-full shadow-lg border border-[#1d2733] bg-[#0d6efd] text-white px-4 py-3 flex items-center gap-2"
+          style={{ animation: "bubblePulse 3s ease-in-out infinite" }}
         >
-          {collapsed ? "➕ Show" : "➖ Hide"}
+          <span>💬</span>
+          <span className="hidden sm:inline font-semibold">AI Co-Pilot</span>
         </button>
-      </div>
+      </>
+    );
+  }
 
-      {!collapsed && (
-        <>
-          {/* Chatbox */}
-          <div
-            ref={chatboxRef}
-            id="chatbox"
-            className="mt-3 border border-[#1d2733] bg-[#0e141b] rounded-md p-3 overflow-y-auto"
-            style={{ height: 360 }}
-            aria-live="polite"
-          >
-            {messages.map((m, i) => (
-              <div key={i} className={`flex gap-2 my-2 ${m.who === "me" ? "justify-end" : ""}`}>
-                <div
-                  className={[
-                    "inline-block",
-                    "max-w-[85%]",
-                    "rounded-lg",
-                    "border",
-                    "border-[#1d2733]",
-                    "px-3",
-                    "py-2",
-                    "shadow",
-                    m.who === "me"
-                      ? "bg-gradient-to-b from-[#10233b] to-[#0d1a2b]"
-                      : "bg-gradient-to-b from-[#121b26] to-[#162233]"
-                  ].join(" ")}
+  // --- right panel (open)
+  return (
+    <>
+      <Keyframes />
+
+      <aside
+        role="complementary"
+        aria-label="AI Co-Pilot chat panel"
+        className="fixed top-0 right-0 h-screen w-full sm:w-[420px] lg:w-[500px] z-40
+                   bg-[#0b1117] border-l border-[#1d2733] shadow-2xl flex flex-col"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1d2733] bg-[#0e141b]">
+          <h3 className="m-0 text-base font-semibold">💬 AI Co-Pilot</h3>
+          <div className="flex items-center gap-2">
+            <button
+              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-1.5 transition hover:-translate-y-px hover:border-[#2a3a4f]"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-expanded={!collapsed}
+              aria-controls="chatbox"
+              title={collapsed ? "Show messages" : "Hide messages"}
+            >
+              {collapsed ? "➕ Show" : "➖ Hide"}
+            </button>
+            <button
+              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-1.5 transition hover:-translate-y-px hover:border-[#2a3a4f]"
+              onClick={() => setIsOpen(false)}
+              title="Minimize"
+              aria-label="Minimize chat"
+            >
+              ⬇ Minimize
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        {!collapsed && (
+          <div className="flex-1 flex flex-col p-4 gap-2 relative">
+            {/* Chatbox */}
+            <div
+              ref={chatboxRef}
+              id="chatbox"
+              className="border border-[#1d2733] bg-[#0e141b] rounded-md p-3 overflow-y-auto flex-1"
+              aria-live="polite"
+            >
+              {messages.map((m, i) => (
+                <div key={i} className={`flex gap-2 my-2 ${m.who === "me" ? "justify-end" : ""}`}>
+                  <div
+                    className={[
+                      "inline-block","max-w-[85%]","rounded-lg","border","border-[#1d2733]","px-3","py-2","shadow",
+                      m.who === "me"
+                        ? "bg-gradient-to-b from-[#10233b] to-[#0d1a2b]"
+                        : "bg-gradient-to-b from-[#121b26] to-[#162233]"
+                    ].join(" ")}
+                  >
+                    {m.who === "ai" ? (
+                      <div dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(m.text) }} />
+                    ) : (
+                      <div>{m.text}</div>
+                    )}
+                    {m.who === "ai" && (
+                      <div className="mt-2">
+                        <button
+                          className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#9aa4af] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
+                          title="Copy response"
+                          onClick={() => navigator.clipboard.writeText(m.text)}
+                        >
+                          📋 Copy
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick prompts */}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {QUICK_PROMPTS.map((p) => (
+                <button
+                  key={p.label}
+                  className="border border-[#233041] text-[#d5e3f7] font-semibold rounded-full transition whitespace-nowrap px-3 py-1 hover:-translate-y-px"
+                  style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.02), transparent), #0f1722" }}
+                  onClick={() => ask(p.q)}
                 >
-                  {m.who === "ai" ? (
-                    <div dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(m.text) }} />
-                  ) : (
-                    <div>{m.text}</div>
-                  )}
+                  {p.label}
+                </button>
+              ))}
+            </div>
 
-                  {m.who === "ai" && (
-                    <div className="mt-2">
-                      <button
-                        className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#9aa4af] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
-                        title="Copy response"
-                        onClick={() => navigator.clipboard.writeText(m.text)}
-                      >
-                        📋 Copy
-                      </button>
-                    </div>
-                  )}
+            {/* Toolbar */}
+            <div className="flex gap-2">
+              <button
+                className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
+                onClick={() => {
+                  setMessages([]);
+                  try { localStorage.removeItem(LS_KEY); } catch {/*noop*/}
+                }}
+              >
+                🧹 Clear
+              </button>
+              <button
+                className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
+                onClick={() => {
+                  const text = messages.map((r) => `${r.who === "me" ? "You" : "Assistant"}: ${r.text}`).join("\n\n");
+                  navigator.clipboard.writeText(text);
+                }}
+              >
+                📄 Export
+              </button>
+            </div>
+
+            {/* Input */}
+            <div className="flex gap-2">
+              <textarea
+                rows={2}
+                className="flex-1 px-3 py-2 rounded-md border border-[#1d2733] bg-[#0e141b] outline-none focus:ring-0 focus:border-[#2a3a4f]"
+                placeholder="Ask a question…"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(input); }
+                  if ((e.key === "Enter") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); ask(input); }
+                }}
+                disabled={loading}
+              />
+              <button
+                className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#0d6efd] bg-[#0d6efd] text-white px-4 py-2 transition hover:brightness-105 disabled:opacity-60 disabled:cursor-not-allowed"
+                onClick={() => ask(input)}
+                disabled={loading}
+              >
+                Send
+              </button>
+            </div>
+
+            {/* Loader overlay (scoped to panel) */}
+            {loading && (
+              <div
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ background: "rgba(8,12,18,0.62)", backdropFilter: "saturate(120%) blur(4px)", zIndex: 10 }}
+                role="status"
+                aria-live="assertive"
+              >
+                <div className="bg-[#11161c] border border-[#1d2733] rounded-xl p-4 min-w-[260px] text-center shadow">
+                  <div
+                    className="mx-auto mb-2"
+                    style={{ width: 28, height: 28, borderRadius: "50%", border: "3px solid #2a3a4f", borderTopColor: "#7ab7ff", animation: "spin 1s linear infinite" }}
+                  />
+                  <div className="font-semibold">Thinking…</div>
+                  <div className="text-sm text-[#9aa4af]">Analyzing data and preparing an answer</div>
                 </div>
               </div>
-            ))}
+            )}
           </div>
-
-          {/* Quick prompts */}
-          <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-            {QUICK_PROMPTS.map((p) => (
-              <button
-                key={p.label}
-                className="border border-[#233041] text-[#d5e3f7] font-semibold rounded-full transition whitespace-nowrap px-3 py-1 hover:-translate-y-px"
-                style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.02), transparent), #0f1722" }}
-                onClick={() => ask(p.q)}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Toolbar */}
-          <div className="flex gap-2 mt-2">
-            <button
-              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
-              onClick={() => {
-                setMessages([]);
-                try { localStorage.removeItem(LS_KEY); } catch {/*placeholder*/}
-              }}
-            >
-              🧹 Clear
-            </button>
-            <button
-              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733] text-[#e7eef7] px-3 py-2 transition hover:-translate-y-px hover:border-[#2a3a4f]"
-              onClick={() => {
-                const text = messages.map((r) => `${r.who === "me" ? "You" : "Assistant"}: ${r.text}`).join("\n\n");
-                navigator.clipboard.writeText(text);
-              }}
-            >
-              📄 Export
-            </button>
-          </div>
-
-          {/* Input */}
-          <div className="flex gap-2 mt-2">
-            <textarea
-              rows={2}
-              className="flex-1 px-3 py-2 rounded-md border border-[#1d2733] bg-[#0e141b] outline-none focus:ring-0 focus:border-[#2a3a4f]"
-              placeholder="Ask a question…"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  ask(input);
-                }
-                if ((e.key === "Enter") && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  ask(input);
-                }
-              }}
-              disabled={loading}
-            />
-            <button
-              className="inline-flex items-center gap-2 font-semibold rounded-md border border-[#0d6efd] bg-[#0d6efd] text-white px-4 py-2 transition hover:brightness-105 disabled:opacity-60 disabled:cursor-not-allowed"
-              onClick={() => ask(input)}
-              disabled={loading}
-            >
-              Send
-            </button>
-          </div>
-
-          {/* Loader overlay */}
-          {loading && (
-            <div
-              className="fixed inset-0 flex items-center justify-center"
-              style={{ background: "rgba(8,12,18,0.62)", backdropFilter: "saturate(120%) blur(4px)", zIndex: 50 }}
-              role="status"
-              aria-live="assertive"
-            >
-              <div className="bg-[#11161c] border border-[#1d2733] rounded-xl p-4 min-w-[260px] text-center shadow">
-                <div
-                  className="mx-auto mb-2"
-                  style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    border: "3px solid #2a3a4f", borderTopColor: "#7ab7ff",
-                    animation: "spin 1s linear infinite",
-                  }}
-                />
-                <div className="font-semibold">Thinking…</div>
-                <div className="text-sm text-[#9aa4af]">Analyzing demo data and preparing an answer</div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+        )}
+      </aside>
+    </>
   );
 }
