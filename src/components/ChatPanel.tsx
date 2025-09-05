@@ -35,7 +35,7 @@ function renderMarkdownSafe(mdText: string) {
 
 export default function ChatPanel({ shop }: { shop: string }) {
   const LS_KEY = useMemo(() => `chatHistory:${shop}`, [shop]);
-  const API_URL = useMemo(() => `/api/chat/${encodeURIComponent(shop)}`, [shop]);
+  const API_URL = useMemo(() => `https://go.uppership.com/api/chat/${encodeURIComponent(shop)}`, [shop]);
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
