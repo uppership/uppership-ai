@@ -5,11 +5,12 @@ import type { OrderDetails } from "../types/order";
 
 
 export default function OrderDrawer({
-  open, onClose, orderId,
+  open, onClose, orderId, shop
 }: {
   open: boolean;
   onClose: () => void;
   orderId: string | null;
+  shop: string;
 }) {
   const [data, setData] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(false);
@@ -18,12 +19,12 @@ export default function OrderDrawer({
     if (!open || !orderId) return;
     setData(null);
     setLoading(true);
-    fetch(`https://go.uppership.com/api/orders/${encodeURIComponent(orderId)}`)
+    fetch(`https://go.uppership.com/api/orders/${encodeURIComponent(orderId)}?shop=${encodeURIComponent(shop)}`)
       .then(r => r.json())
       .then(json => setData(json))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [open, orderId]);
+  }, [open, orderId, shop]);
 
   if (!open || !orderId) return null;
 

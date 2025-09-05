@@ -85,6 +85,7 @@ export default function KanbanBoard({ shop }: { shop: string }) {
           setPackageId(null);
         }}
         orderId={orderId}
+        shop={shop}
       />
     </>
   );
