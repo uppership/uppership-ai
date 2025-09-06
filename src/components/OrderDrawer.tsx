@@ -1,34 +1,43 @@
 // OrderDrawer.tsx
 import { useEffect, useState } from "react";
-// OrderDrawer.tsx
 import type { OrderDetails } from "../types/order";
 
-// OrderDrawer.tsx (top of file, under imports)
-function normalizeTrackingNumbers(val: unknown): string[] {
-    if (!Array.isArray(val)) return [];
-    const KEYS = ['tracking_number', 'tracking', 'tracking_code', 'code', 'number', 'id'];
-    const out: string[] = [];
-  
-    for (const item of val as unknown[]) {
-      if (typeof item === 'string' || typeof item === 'number') {
-        out.push(String(item));
-        continue;
-      }
-      if (item && typeof item === 'object') {
-        for (const k of KEYS) {
-          const v = (item as Record<string, unknown>)[k];
-          if (typeof v === 'string' || typeof v === 'number') {
-            out.push(String(v));
-            break;
-          }
-        }
-      }
-    }
-    // dedupe + drop empties
-    return Array.from(new Set(out.filter(Boolean)));
-  }
-  
+// ---------- helpers ----------
+type TrackingEntry = { url?: string; number?: string; company?: string };
 
+/** Return an array of tracking numbers from Shopify's tracking_numbers format */
+function normalizeTrackingNumbers(val: unknown): string[] {
+  if (!Array.isArray(val)) return [];
+  const out: string[] = [];
+  for (const item of val as unknown[]) {
+    if (item && typeof item === 'object') {
+      const number = (item as TrackingEntry).number;
+      if (typeof number === 'string' && number.trim()) out.push(number.trim());
+    } else if (typeof item === 'string' && item.trim()) {
+      out.push(item.trim());
+    }
+  }
+  return Array.from(new Set(out));
+}
+
+/** Extract all tracking link objects (url, number, company) */
+function extractTrackingLinks(val: unknown): { url: string; number?: string; company?: string }[] {
+  if (!Array.isArray(val)) return [];
+  const out: { url: string; number?: string; company?: string }[] = [];
+  for (const item of val as unknown[]) {
+    if (item && typeof item === 'object') {
+      const { url, number, company } = item as TrackingEntry;
+      if (typeof url === 'string' && url.startsWith('http')) {
+        out.push({ url, number, company });
+      }
+    } else if (typeof item === 'string' && item.startsWith('http')) {
+      out.push({ url: item }); // rare, but safe
+    }
+  }
+  // dedupe by URL
+  const seen = new Set<string>();
+  return out.filter(t => (t.url && !seen.has(t.url) && seen.add(t.url)));
+}
 
 export default function OrderDrawer({
   open, onClose, orderId, shop
@@ -57,6 +66,8 @@ export default function OrderDrawer({
   const o = data?.order;
   const items = data?.items || [];
   const tn = normalizeTrackingNumbers(o?.tracking_numbers);
+  const trackingLinks = extractTrackingLinks(o?.tracking_numbers);
+  const primaryTrack = trackingLinks[0]; // first link as the primary button
 
   return (
     <aside
@@ -105,10 +116,26 @@ export default function OrderDrawer({
             <div><span className="text-[#9aa4af]">Region:</span> {o?.region || "—"}</div>
             <div><span className="text-[#9aa4af]">Created:</span> {o?.created_at ? new Date(o.created_at).toLocaleString() : "—"}</div>
             <div><span className="text-[#9aa4af]">Delivered:</span> {o?.tracking_delivered_at ? new Date(o.tracking_delivered_at).toLocaleString() : "—"}</div>
+
+            {/* Tracking numbers rendered as inline links when URLs exist */}
             <div className="col-span-2">
-            <span className="text-[#9aa4af]">Tracking #:</span>{" "}
-            {tn.length ? tn.join(", ") : "—"}
+              <span className="text-[#9aa4af]">Tracking #:</span>{" "}
+              {trackingLinks.length
+                ? trackingLinks.map((t, i) => (
+                    <a
+                      key={t.url}
+                      href={t.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline-offset-2 hover:underline"
+                      title={t.company ? `${t.company} • ${t.number ?? ''}` : (t.number ?? 'Track')}
+                    >
+                      {t.number ?? `Link ${i + 1}`}{i < trackingLinks.length - 1 ? ', ' : ''}
+                    </a>
+                  ))
+                : (tn.length ? tn.join(", ") : "—")}
             </div>
+
             <div className="col-span-2">
               <span className="text-[#9aa4af]">Last Update:</span> {o?.tracking_last_update || "—"}
             </div>
@@ -117,13 +144,30 @@ export default function OrderDrawer({
               {o?.tracking_flagged ? "  • ⚠ flagged" : ""}
             </div>
           </div>
+
           <div className="mt-3 flex gap-2">
             {o?.links?.shopify_search && (
-              <a className="btn" href={o.links.shopify_search} target="_blank" rel="noreferrer">🛍 Open in Shopify</a>
+              <a className="btn" href={o.links.shopify_search} target="_blank" rel="noopener noreferrer">
+                🛍 Open in Shopify
+              </a>
             )}
-            {o?.easypost_tracker_id && (
-              <span className="btn" title={`Tracker: ${o.easypost_tracker_id}`}>📦 EasyPost Tracker: {o.easypost_tracker_id}</span>
-            )}
+
+            {/* Primary tracking button */}
+            {primaryTrack ? (
+              <a
+                className="btn"
+                href={primaryTrack.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={primaryTrack.number ? `Tracking # ${primaryTrack.number}` : 'Track shipment'}
+              >
+                📦 {primaryTrack.company ? `Track with ${primaryTrack.company}` : 'Track shipment'}
+              </a>
+            ) : o?.easypost_tracker_id ? (
+              <span className="btn" title={`Tracker: ${o.easypost_tracker_id}`}>
+                📦 Tracker: {o.easypost_tracker_id}
+              </span>
+            ) : null}
           </div>
         </section>
 
@@ -157,20 +201,18 @@ export default function OrderDrawer({
           </div>
         </section>
 
-        {/* Issues & Actions (uses tracking_ignore) */}
+        {/* Issues & Actions */}
         <section className="card p-3">
           <div className="font-semibold mb-2">Issues & Actions</div>
           <div className="text-sm mb-2">
             {o?.tracking_flagged ? "This order is flagged. Review and take action." : "No flags."}
           </div>
           <div className="flex flex-wrap gap-2">
-            {/* Example: Ignore → sets tracking_ignore = true */}
             <button
               className="btn"
               onClick={async () => {
                 if (!o) return;
                 await fetch(`https://go.uppership.com/api/orders/${encodeURIComponent(o.id)}/ignore`, { method: 'POST' });
-                // Optimistic UI
                 setData(cur => cur ? ({ ...cur, order: { ...cur.order, tracking_ignore: true } }) : cur);
               }}
               disabled={!!o?.tracking_ignore}
@@ -179,7 +221,6 @@ export default function OrderDrawer({
               🙈 {o?.tracking_ignore ? "Ignored" : "Ignore"}
             </button>
 
-            {/* Stubs for future actions you already mentioned */}
             <button className="btn" disabled>📦 Reship remainder</button>
             <button className="btn" disabled>🎟 Create ticket</button>
           </div>
