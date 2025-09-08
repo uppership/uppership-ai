@@ -37,13 +37,37 @@ type Msg = { who: Role; text: string };
 
 function renderMarkdownSafe(mdText: string) {
   const raw = marked.parse(mdText || "") as string;
-  const clean = DOMPurify.sanitize(raw, {
+
+  // Enhance tables BEFORE sanitization so DOMPurify still vets everything
+  const enhanced = (() => {
+    try {
+      const doc = new DOMParser().parseFromString(raw, "text/html");
+      doc.querySelectorAll("table").forEach((t) => {
+        t.classList.add("chat-table");
+        if (!t.parentElement || !t.parentElement.classList.contains("chat-table-wrap")) {
+          const wrap = doc.createElement("div");
+          wrap.className = "chat-table-wrap";
+          t.replaceWith(wrap);
+          wrap.appendChild(t);
+        }
+      });
+      return doc.body.innerHTML;
+    } catch {
+      // Fallback: basic string add (still safe because we sanitize next)
+      return raw.replace(/<table/g, '<table class="chat-table">')
+                .replace(/(<table[^>]*>)/g, '<div class="chat-table-wrap">$1')
+                .replace(/<\/table>/g, '</table></div>');
+    }
+  })();
+
+  const clean = DOMPurify.sanitize(enhanced, {
     ALLOWED_TAGS: [
       "a","p","br","strong","em","code","pre","blockquote",
       "ul","ol","li","hr","table","thead","tbody","tfoot","tr","th","td","div"
     ],
     ALLOWED_ATTR: ["href","title","target","rel","colspan","rowspan","align","class"]
   }) as string;
+
   return `<div class="chat-md">${clean}</div>`;
 }
 
