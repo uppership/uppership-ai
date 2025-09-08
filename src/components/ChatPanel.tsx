@@ -1,24 +1,9 @@
 // ChatPanel.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { marked, type Tokens } from "marked";
+import { marked } from "marked";
 import DOMPurify from "dompurify";
 
-const baseRenderer = new marked.Renderer();
-const defaultTable = baseRenderer.table!.bind(baseRenderer);
-
-marked.use({
-  renderer: {
-    table(token: Tokens.Table) {
-      // Let Marked build the table HTML first
-      const html = defaultTable(token);
-      // Wrap and add our class to <table>
-      const enhanced = html.replace("<table", '<table class="chat-table"');
-      return `<div class="chat-table-wrap">${enhanced}</div>`;
-    }
-  },
-});
-
-marked.setOptions({ async: false });
+marked.setOptions({ async: false, gfm: true });
 
 const QUICK_PROMPTS = [
   { label: "Overview", q: "Give me a quick overview of performance, top SKUs, low-stock risks, and any recent alerts or tickets." },
@@ -36,40 +21,45 @@ type Role = "me" | "ai";
 type Msg = { who: Role; text: string };
 
 function renderMarkdownSafe(mdText: string) {
+  // 1) Markdown -> HTML (no custom renderer)
   const raw = marked.parse(mdText || "") as string;
 
-  // Enhance tables BEFORE sanitization so DOMPurify still vets everything
-  const enhanced = (() => {
-    try {
-      const doc = new DOMParser().parseFromString(raw, "text/html");
-      doc.querySelectorAll("table").forEach((t) => {
-        t.classList.add("chat-table");
-        if (!t.parentElement || !t.parentElement.classList.contains("chat-table-wrap")) {
-          const wrap = doc.createElement("div");
-          wrap.className = "chat-table-wrap";
-          t.replaceWith(wrap);
-          wrap.appendChild(t);
-        }
-      });
-      return doc.body.innerHTML;
-    } catch {
-      // Fallback: basic string add (still safe because we sanitize next)
-      return raw.replace(/<table/g, '<table class="chat-table">')
-                .replace(/(<table[^>]*>)/g, '<div class="chat-table-wrap">$1')
-                .replace(/<\/table>/g, '</table></div>');
-    }
-  })();
+  // 2) Add classes + wrappers to any <table> BEFORE sanitization
+  let enhanced = raw;
+  try {
+    const doc = new DOMParser().parseFromString(raw, "text/html");
+    doc.querySelectorAll("table").forEach((t) => {
+      t.classList.add("chat-table");
+      if (!t.parentElement || !t.parentElement.classList.contains("chat-table-wrap")) {
+        const wrap = doc.createElement("div");
+        wrap.className = "chat-table-wrap";
+        t.replaceWith(wrap);
+        wrap.appendChild(t);
+      }
+    });
+    enhanced = doc.body.innerHTML;
+  } catch {
+    // Fallback if DOMParser isn’t available (kept for SSR edge cases)
+    enhanced = raw
+      .replace(/<table/g, '<table class="chat-table"')
+      .replace(/(<table[^>]*>)/g, '<div class="chat-table-wrap">$1')
+      .replace(/<\/table>/g, '</table></div>');
+  }
 
+  // 3) Sanitize (now with our wrapper/classes)
   const clean = DOMPurify.sanitize(enhanced, {
     ALLOWED_TAGS: [
       "a","p","br","strong","em","code","pre","blockquote",
-      "ul","ol","li","hr","table","thead","tbody","tfoot","tr","th","td","div"
+      "ul","ol","li","hr",
+      "table","thead","tbody","tfoot","tr","th","td","div"
     ],
     ALLOWED_ATTR: ["href","title","target","rel","colspan","rowspan","align","class"]
   }) as string;
 
+  // 4) Wrap for chat styling
   return `<div class="chat-md">${clean}</div>`;
 }
+
 
 export default function ChatPanel({ shop, onOpenChange }: { shop: string; onOpenChange?: (open: boolean) => void; }) {
   const LS_KEY = useMemo(() => `chatHistory:${shop}`, [shop]);
