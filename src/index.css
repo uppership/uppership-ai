@@ -1,13 +1,12 @@
-/* src/index.css (or wherever your entry CSS lives) */
+/* src/index.css */
 @import "tailwindcss";
 /* your custom styles can go after this */
 
-/* global background if you want */
+/* global background */
 html, body {
   @apply bg-[#0b1117] text-white;
 }
 
-/* Reusable component classes */
 @layer components {
   .card {
     @apply rounded-xl border border-[#1d2733] shadow-lg bg-[#11161c];
@@ -17,15 +16,9 @@ html, body {
     @apply inline-flex items-center gap-2 font-semibold rounded-md border border-[#1d2733]
            text-[#e7eef7] px-3 py-2 transition ease-in-out duration-150 bg-white/5;
   }
-  .btn:hover {
-    @apply -translate-y-px border-[#2a3a4f];
-  }
-  .btn:disabled {
-    @apply opacity-60 cursor-not-allowed;
-  }
-  .btn-primary {
-    @apply bg-[#0d6efd] border-[#0d6efd] text-white;
-  }
+  .btn:hover { @apply -translate-y-px border-[#2a3a4f]; }
+  .btn:disabled { @apply opacity-60 cursor-not-allowed; }
+  .btn-primary { @apply bg-[#0d6efd] border-[#0d6efd] text-white; }
 
   .chip {
     @apply border border-[#233041] text-[#d5e3f7] font-semibold rounded-full
@@ -33,12 +26,8 @@ html, body {
     background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), #0f1722;
   }
 
-  .chat-msg {
-    @apply flex gap-2 my-2;
-  }
-  .chat-msg.me {
-    @apply justify-end;
-  }
+  .chat-msg { @apply flex gap-2 my-2; }
+  .chat-msg.me { @apply justify-end; }
 
   .chat-avatar {
     @apply w-7 h-7 rounded-full flex items-center justify-center border border-[#1d2733] shrink-0 text-sm;
@@ -52,25 +41,66 @@ html, body {
   .chat-bubble {
     @apply border border-[#1d2733] px-3 py-2 rounded-lg shadow max-w-[85%];
   }
-  .chat-bubble.ai {
-    background: linear-gradient(180deg, #121b26, #162233);
-  }
-  .chat-bubble.me {
-    background: linear-gradient(180deg, #10233b, #0d1a2b);
-  }
+  .chat-bubble.ai { background: linear-gradient(180deg, #121b26, #162233); }
+  .chat-bubble.me { background: linear-gradient(180deg, #10233b, #0d1a2b); }
 
-  .typing {
-    @apply inline-flex items-center gap-1.5;
-  }
-  .typing .dot {
-    @apply w-1.5 h-1.5 rounded-full bg-[#7aa9e6];
-    animation: bounceDots 1.2s infinite ease-in-out;
-  }
+  .typing { @apply inline-flex items-center gap-1.5; }
+  .typing .dot { @apply w-1.5 h-1.5 rounded-full bg-[#7aa9e6]; animation: bounceDots 1.2s infinite ease-in-out; }
   .typing .dot:nth-child(2) { animation-delay:.15s }
   .typing .dot:nth-child(3) { animation-delay:.3s }
 
   @keyframes bounceDots {
     0%,80%,100% { transform: translateY(0); opacity:.6; }
     40% { transform: translateY(-4px); opacity:1; }
+  }
+
+  /* --- NEW: markdown & table styles --- */
+  .chat-md { @apply text-[0.95rem] leading-6; }
+
+  .chat-table-wrap {
+    @apply rounded-xl border border-[#1d2733] my-2;
+    overflow-x: auto;
+    background: rgba(255,255,255,0.01);
+  }
+
+  .chat-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 520px;
+  }
+
+  .chat-table thead th {
+    @apply font-bold text-left;
+    background: #0f1722;
+    border-bottom: 1px solid #223044;
+    padding: 10px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .chat-table th,
+  .chat-table td {
+    border-right: 1px solid #223044;
+    padding: 10px 12px;
+    vertical-align: top;
+    white-space: nowrap;
+  }
+  .chat-table th:last-child,
+  .chat-table td:last-child { border-right: 0; }
+
+  .chat-table tbody tr { border-top: 1px solid #1d2733; }
+  .chat-table tbody tr:nth-child(odd) { background: rgba(255,255,255,0.025); }
+
+  .chat-table [align="center"] { text-align: center; }
+  .chat-table [align="right"]  { text-align: right; }
+
+  .chat-table code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: .9em;
+    background: #0d1320;
+    border: 1px solid #1d2733;
+    border-radius: 6px;
+    padding: 0 4px;
   }
 }

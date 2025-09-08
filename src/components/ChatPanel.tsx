@@ -1,7 +1,22 @@
 // ChatPanel.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { marked } from "marked";
+import { marked, type Tokens } from "marked";
 import DOMPurify from "dompurify";
+
+const baseRenderer = new marked.Renderer();
+const defaultTable = baseRenderer.table!.bind(baseRenderer);
+
+marked.use({
+  renderer: {
+    table(token: Tokens.Table) {
+      // Let Marked build the table HTML first
+      const html = defaultTable(token);
+      // Wrap and add our class to <table>
+      const enhanced = html.replace("<table", '<table class="chat-table"');
+      return `<div class="chat-table-wrap">${enhanced}</div>`;
+    }
+  },
+});
 
 marked.setOptions({ async: false });
 
@@ -21,11 +36,15 @@ type Role = "me" | "ai";
 type Msg = { who: Role; text: string };
 
 function renderMarkdownSafe(mdText: string) {
-  const raw = marked.parse(mdText || "") as unknown as string;
-  return DOMPurify.sanitize(raw, {
-    ALLOWED_TAGS: ["a","p","br","strong","em","code","pre","blockquote","ul","ol","li","hr","table","thead","tbody","tfoot","tr","th","td"],
-    ALLOWED_ATTR: ["href","title","target","rel","colspan","rowspan","align"]
+  const raw = marked.parse(mdText || "") as string;
+  const clean = DOMPurify.sanitize(raw, {
+    ALLOWED_TAGS: [
+      "a","p","br","strong","em","code","pre","blockquote",
+      "ul","ol","li","hr","table","thead","tbody","tfoot","tr","th","td","div"
+    ],
+    ALLOWED_ATTR: ["href","title","target","rel","colspan","rowspan","align","class"]
   }) as string;
+  return `<div class="chat-md">${clean}</div>`;
 }
 
 export default function ChatPanel({ shop, onOpenChange }: { shop: string; onOpenChange?: (open: boolean) => void; }) {
