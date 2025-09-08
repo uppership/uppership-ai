@@ -208,8 +208,8 @@ export default function ChatPanel({ shop, onOpenChange }: { shop: string; onOpen
       <aside
         role="complementary"
         aria-label="AI Co-Pilot chat panel"
-        className="fixed top-0 right-0 h-[100dvh] w-full sm:w-[420px] lg:w-[500px] z-40
-                   bg-[#0b1117] border-l border-[#1d2733] shadow-2xl flex flex-col min-h-0"
+        className="fixed inset-0 h-[100dvh] w-full z-40
+           bg-[#0b1117] shadow-2xl flex flex-col min-h-0"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#1d2733] bg-[#0e141b]">
