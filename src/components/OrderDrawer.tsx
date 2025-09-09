@@ -99,7 +99,7 @@ export default function OrderDrawer({
 
   function ticketUrl(id: number) {
     // Adjust if your admin route differs
-    return `/admin/tickets/${id}`;
+    return `https://go.uppership.com/admin/tickets/${id}`;
   }
 
   async function handleCreateTicket() {
