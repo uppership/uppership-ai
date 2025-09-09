@@ -134,7 +134,7 @@ export default function OrderDrawer({
 
     try {
       // Calls your server-side proxy: POST /api/tickets -> forwards to /public/tickets with x-api-key
-      const res = await fetch("/api/tickets", {
+      const res = await fetch("https://go.uppership.com/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
