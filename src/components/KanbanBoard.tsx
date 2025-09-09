@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import Column from "./Column";
 import OrderDrawer from "./OrderDrawer";
 
-const STATUSES = ["ordered", "shipped", "in_transit", "delivered", "exception"];
+const STATUSES = ["ordered", "pre_transit", "in_transit", "delivered", "exception"];
 
 export default function KanbanBoard({ shop }: { shop: string }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
