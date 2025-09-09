@@ -20,19 +20,19 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
 
   return (
     <div className="relative bg-slate-800 border border-slate-700 rounded-lg p-2 shadow-sm text-sm">
-      <p className="font-semibold text-base">{pkg.order_name}</p>
+      <p className="font-semibold text-lg">{pkg.order_name}</p>
       <p className="text-slate-400">{pkg.customer_name}</p>
 
-      <p className="text-slate-500 text-xs">
+      <p className="text-slate-500 text-base lg:text-lg">
         {links.length === 0 && carrierText}
         {links.length === 1 && (
           <a
             href={links[0].url}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-2 hover:text-slate-300"
+            className="font-medium underline-offset-2 hover:underline text-current"
             title={links[0].company ? `${links[0].company}${links[0].number ? ` • ${links[0].number}` : ""}` : "Track"}
-            onClick={(e) => e.stopPropagation()} // keep column row click from firing
+            onClick={(e) => e.stopPropagation()}
           >
             {carrierText}
           </a>
@@ -45,7 +45,7 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
                 href={l.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-slate-300"
+                className="font-medium underline-offset-2 hover:underline text-current"
                 title={l.company ? `${l.company}${l.number ? ` • ${l.number}` : ""}` : "Track"}
                 onClick={(e) => e.stopPropagation()}
               >
