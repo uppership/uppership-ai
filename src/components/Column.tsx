@@ -13,12 +13,20 @@ type PackageWithOptionalIds = Package & {
   order_id?: string | null;
   shopify_order_id?: string | null;
   orderId?: string | null;
-  // add more optional keys if you sometimes only have them:
-  // order_name?: string | null;
+  flags?: string[] | null; // <-- use existing flags field
 };
 
 function resolveOrderId(pkg: PackageWithOptionalIds): string | undefined {
   return pkg.order_id ?? pkg.shopify_order_id ?? pkg.orderId ?? undefined;
+}
+
+function getFlagIndicator(flags?: string[] | null): { className: string; title: string } | null {
+  if (!flags || flags.length === 0) return null;
+  const lower = flags.map((f) => String(f).toLowerCase());
+  if (lower.includes("overdue")) return { className: "bg-red-500", title: "Tracking overdue" };
+  if (lower.includes("stuck")) return { className: "bg-amber-500", title: "Tracking stuck" };
+  // fallback: show first flag name(s) as tooltip
+  return { className: "bg-sky-500", title: `Flags: ${flags.join(", ")}` };
 }
 
 export default function Column({ shop, status, onCardClick }: ColumnProps) {
@@ -27,8 +35,9 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
   return (
     <section
       className="bg-slate-900 rounded-xl border border-slate-700 flex flex-col min-h-0"
-      style={{ height: "80vh" }} // keep your current height; swap to 100%/grid if you move to full-viewport layouts
+      style={{ height: "80vh" }}
       aria-labelledby={`col-${status}`}
+      aria-busy={isLoading ? "true" : "false"}
     >
       <h2
         id={`col-${status}`}
@@ -43,24 +52,33 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
           <p className="text-xs text-slate-500">No packages</p>
         )}
 
-        {data?.map((pkg: Package) => {
+        {data?.map((pkg: PackageWithOptionalIds) => {
           const orderId = resolveOrderId(pkg);
+          const indicator = getFlagIndicator(pkg.flags);
 
           return (
             <div
               key={pkg.id}
               role="button"
               tabIndex={0}
-              className="outline-none focus:ring-2 focus:ring-slate-500 rounded-lg"
-              onClick={() => onCardClick?.({ orderId, packageId: pkg.id, pkg })}
+              className="relative outline-none focus:ring-2 focus:ring-slate-500 rounded-lg"
+              onClick={() => onCardClick?.({ orderId, packageId: pkg.id as string, pkg: pkg as Package })}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  onCardClick?.({ orderId, packageId: pkg.id, pkg });
+                  onCardClick?.({ orderId, packageId: pkg.id as string, pkg: pkg as Package });
                 }
               }}
             >
-              <Card pkg={pkg} />
+              <Card pkg={pkg as Package} />
+
+              {indicator && (
+                <span
+                  className={`pointer-events-none absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-slate-900 ${indicator.className}`}
+                  title={indicator.title}
+                  aria-label={indicator.title}
+                />
+              )}
             </div>
           );
         })}
