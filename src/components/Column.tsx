@@ -1,10 +1,11 @@
+import { useMemo } from "react";
 import { usePackages } from "../hooks/usePackages";
 import Card from "./Card";
 import type { Package } from "../types/package";
 
 type ColumnProps = {
   shop: string;
-  status: string;
+  status: "ordered" | "pre_transit" | "in_transit" | "delivered" | "exception";
   onCardClick?: (args: { orderId?: string; packageId: string; pkg: Package }) => void;
 };
 
@@ -27,30 +28,90 @@ function getFlagMeta(flags?: string[] | null):
 
   if (lower.includes("overdue")) {
     return {
-      // soft red bg, red text, subtle border; ring to separate from dark card
-      wrapClass:
-        "bg-red-500/15 text-red-600 border border-red-500/30 ring-2 ring-slate-900",
+      wrapClass: "bg-red-500/15 text-red-600 border border-red-500/30 ring-2 ring-slate-900",
       iconTitle: "Tracking overdue",
     };
   }
-
   if (lower.includes("stuck")) {
     return {
-      wrapClass:
-        "bg-amber-500/15 text-amber-700 border border-amber-500/30 ring-2 ring-slate-900",
+      wrapClass: "bg-amber-500/15 text-amber-700 border border-amber-500/30 ring-2 ring-slate-900",
       iconTitle: "Tracking stuck",
     };
   }
-
   return {
-    wrapClass:
-      "bg-sky-500/15 text-sky-700 border border-sky-500/30 ring-2 ring-slate-900",
+    wrapClass: "bg-sky-500/15 text-sky-700 border border-sky-500/30 ring-2 ring-slate-900",
     iconTitle: `Flags: ${flags.join(", ")}`,
   };
 }
 
+function dedupeById<T extends { id: string }>(arr: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of arr) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
 export default function Column({ shop, status, onCardClick }: ColumnProps) {
-  const { data, isLoading } = usePackages(shop, status);
+  // Call the hook for ALL statuses to keep rules-of-hooks happy & stable
+  const qOrdered     = usePackages(shop, "ordered");
+  const qPreTransit  = usePackages(shop, "pre_transit");
+  const qInTransit   = usePackages(shop, "in_transit");
+  const qDelivered   = usePackages(shop, "delivered");
+  const qException   = usePackages(shop, "exception");
+
+  const byStatus = {
+    ordered: qOrdered,
+    pre_transit: qPreTransit,
+    in_transit: qInTransit,
+    delivered: qDelivered,
+    exception: qException,
+  } as const;
+
+  // Base data for this column
+  const baseData: PackageWithOptionalIds[] = (byStatus[status].data ?? []) as PackageWithOptionalIds[];
+  const baseLoading = byStatus[status].isLoading;
+
+  // Build exceptions view = exception status + any flagged items from other columns
+  const exceptionsData = useMemo(() => {
+    if (status !== "exception") return baseData;
+
+    const others = [
+      ...(qOrdered.data ?? []),
+      ...(qPreTransit.data ?? []),
+      ...(qInTransit.data ?? []),
+      ...(qDelivered.data ?? []),
+    ] as PackageWithOptionalIds[];
+
+    const flagged = others.filter((p) => (p.flags?.length ?? 0) > 0);
+    return dedupeById<PackageWithOptionalIds>([
+      ...(qException.data ?? [] as PackageWithOptionalIds[]),
+      ...flagged,
+    ]);
+  }, [
+    status,
+    baseData,
+    qOrdered.data,
+    qPreTransit.data,
+    qInTransit.data,
+    qDelivered.data,
+    qException.data,
+  ]);
+
+  const isLoading =
+    status === "exception"
+      ? (qException.isLoading ||
+         qOrdered.isLoading ||
+         qPreTransit.isLoading ||
+         qInTransit.isLoading ||
+         qDelivered.isLoading)
+      : baseLoading;
+
+  const displayData = status === "exception" ? exceptionsData : baseData;
 
   return (
     <section
@@ -63,7 +124,7 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
         id={`col-${status}`}
         className="text-sm font-bold px-3 py-2 border-b border-slate-700 uppercase"
       >
-        {status} {data ? `(${data.length})` : ""}
+        {status} {displayData ? `(${displayData.length})` : ""}
       </h2>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
@@ -74,11 +135,11 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
           </div>
         )}
 
-        {!isLoading && (!data || data.length === 0) && (
+        {!isLoading && (!displayData || displayData.length === 0) && (
           <p className="text-xs text-slate-500">No packages</p>
         )}
 
-        {data?.map((pkg: PackageWithOptionalIds) => {
+        {displayData?.map((pkg: PackageWithOptionalIds) => {
           const orderId = resolveOrderId(pkg);
           const flagMeta = getFlagMeta(pkg.flags);
 
@@ -88,9 +149,7 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
               role="button"
               tabIndex={0}
               className="relative outline-none focus:ring-2 focus:ring-slate-500 rounded-lg"
-              onClick={() =>
-                onCardClick?.({ orderId, packageId: pkg.id as string, pkg: pkg as Package })
-              }
+              onClick={() => onCardClick?.({ orderId, packageId: pkg.id as string, pkg: pkg as Package })}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -100,7 +159,7 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
             >
               <Card pkg={pkg as Package} />
 
-              {/* Warning icon overlay (top-right) */}
+              {/* Warning icon overlay for flagged packages */}
               {flagMeta && (
                 <span
                   className={`pointer-events-none absolute top-1.5 right-1.5 inline-flex items-center justify-center
@@ -108,7 +167,6 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
                   title={flagMeta.iconTitle}
                   aria-label={flagMeta.iconTitle}
                 >
-                  {/* Inline warning triangle (stroke follows text color) */}
                   <svg
                     viewBox="0 0 24 24"
                     width="14"
