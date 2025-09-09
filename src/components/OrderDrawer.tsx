@@ -1,6 +1,7 @@
 // OrderDrawer.tsx
 import { useEffect, useState } from "react";
 import type { OrderDetails } from "../types/order";
+import { extractTrackingLinks } from "../utils/tracking";
 
 // ---------- helpers ----------
 type TrackingEntry = { url?: string; number?: string; company?: string };
@@ -18,25 +19,6 @@ function normalizeTrackingNumbers(val: unknown): string[] {
     }
   }
   return Array.from(new Set(out));
-}
-
-/** Extract all tracking link objects (url, number, company) */
-function extractTrackingLinks(val: unknown): { url: string; number?: string; company?: string }[] {
-  if (!Array.isArray(val)) return [];
-  const out: { url: string; number?: string; company?: string }[] = [];
-  for (const item of val as unknown[]) {
-    if (item && typeof item === 'object') {
-      const { url, number, company } = item as TrackingEntry;
-      if (typeof url === 'string' && url.startsWith('http')) {
-        out.push({ url, number, company });
-      }
-    } else if (typeof item === 'string' && item.startsWith('http')) {
-      out.push({ url: item }); // rare, but safe
-    }
-  }
-  // dedupe by URL
-  const seen = new Set<string>();
-  return out.filter(t => (t.url && !seen.has(t.url) && seen.add(t.url)));
 }
 
 export default function OrderDrawer({
