@@ -1,7 +1,8 @@
-// KanbanBoard.tsx
 import { useCallback, useEffect, useState } from "react";
 import Column from "./Column";
 import OrderDrawer from "./OrderDrawer";
+import SyncBar from "./SyncBar";
+import type { Package } from "../types/package";
 
 // Make the array literal and derive the union type
 const STATUSES = ["ordered", "pre_transit", "in_transit", "delivered", "exception"] as const;
@@ -12,8 +13,11 @@ export default function KanbanBoard({ shop }: { shop: string }) {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [packageId, setPackageId] = useState<string | null>(null);
 
+  // 🔑 bump this when the sync finishes to trigger Columns to refetch
+  const [refreshToken, setRefreshToken] = useState(0);
+
   const handleCardClick = useCallback(
-    ({ orderId, packageId }: { orderId?: string; packageId: string }) => {
+    ({ orderId, packageId }: { orderId?: string; packageId: string; pkg?: Package }) => {
       if (orderId) {
         setOrderId(orderId);
         setPackageId(null);
@@ -25,6 +29,11 @@ export default function KanbanBoard({ shop }: { shop: string }) {
     },
     []
   );
+
+  // Called by SyncBar when msLeft returns to 0
+  const refetchKanban = useCallback(() => {
+    setRefreshToken(t => t + 1);
+  }, []);
 
   useEffect(() => {
     if (!packageId) return;
@@ -56,13 +65,22 @@ export default function KanbanBoard({ shop }: { shop: string }) {
 
   return (
     <>
+      {/* Sync bar handles kicking off sync + polling + finishing signal */}
+      <SyncBar shop={shop} onDone={refetchKanban} />
+
       <div className="w-full h-full">
         <div
           className="grid gap-4 p-4 overflow-x-auto"
           style={{ gridTemplateColumns: `repeat(${STATUSES.length}, minmax(240px, 1fr))` }}
         >
           {STATUSES.map((status: Status) => (
-            <Column key={status} shop={shop} status={status} onCardClick={handleCardClick} />
+            <Column
+              key={status}
+              shop={shop}
+              status={status}
+              onCardClick={handleCardClick}
+              refreshToken={refreshToken}   // ← NEW: triggers refetch in Column
+            />
           ))}
         </div>
       </div>

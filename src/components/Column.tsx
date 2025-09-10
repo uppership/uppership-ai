@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { usePackages } from "../hooks/usePackages";
 import Card from "./Card";
 import type { Package } from "../types/package";
@@ -6,6 +6,7 @@ import type { Package } from "../types/package";
 type ColumnProps = {
   shop: string;
   status: "ordered" | "pre_transit" | "in_transit" | "delivered" | "exception";
+  refreshToken: number; // ← NEW
   onCardClick?: (args: { orderId?: string; packageId: string; pkg: Package }) => void;
 };
 
@@ -56,13 +57,31 @@ function dedupeById<T extends { id: string }>(arr: T[]): T[] {
   return out;
 }
 
-export default function Column({ shop, status, onCardClick }: ColumnProps) {
-  // Call the hook for ALL statuses to keep rules-of-hooks happy & stable
+export default function Column({ shop, status, onCardClick, refreshToken }: ColumnProps) {
+  // Fetch all statuses (keeps Rules-of-Hooks stable)
   const qOrdered     = usePackages(shop, "ordered");
   const qPreTransit  = usePackages(shop, "pre_transit");
   const qInTransit   = usePackages(shop, "in_transit");
   const qDelivered   = usePackages(shop, "delivered");
   const qException   = usePackages(shop, "exception");
+
+  // 🔁 When refreshToken changes, refetch every query this column can depend on
+  useEffect(() => {
+    // React Query style:
+    qOrdered.refetch?.();
+    qPreTransit.refetch?.();
+    qInTransit.refetch?.();
+    qDelivered.refetch?.();
+    qException.refetch?.();
+
+    // If using SWR instead, swap to:
+    // qOrdered.mutate?.();
+    // qPreTransit.mutate?.();
+    // qInTransit.mutate?.();
+    // qDelivered.mutate?.();
+    // qException.mutate?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken]);
 
   const byStatus = {
     ordered: qOrdered,
@@ -72,7 +91,6 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
     exception: qException,
   } as const;
 
-  // Base data for this column
   const baseData: PackageWithOptionalIds[] = (byStatus[status].data ?? []) as PackageWithOptionalIds[];
   const baseLoading = byStatus[status].isLoading;
 
@@ -89,7 +107,7 @@ export default function Column({ shop, status, onCardClick }: ColumnProps) {
 
     const flagged = others.filter((p) => (p.flags?.length ?? 0) > 0);
     return dedupeById<PackageWithOptionalIds>([
-      ...(qException.data ?? [] as PackageWithOptionalIds[]),
+      ...((qException.data ?? []) as PackageWithOptionalIds[]),
       ...flagged,
     ]);
   }, [
