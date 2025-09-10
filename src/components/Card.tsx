@@ -18,9 +18,23 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
 
   const carrierText = pkg.carrier || (links.length ? "Track" : "No tracking");
 
+  // 👇 add a boolean
+  const ignored = (pkg as { tracking_ignore?: boolean })?.tracking_ignore ?? false;
+
   return (
-    <div className="relative bg-slate-800 border border-slate-700 rounded-lg p-2 shadow-sm text-sm">
-      <p className="font-semibold text-lg">{pkg.order_name}</p>
+    <div
+      className={`relative border border-slate-700 rounded-lg p-2 shadow-sm text-sm
+        ${ignored ? "bg-slate-900 opacity-60 grayscale" : "bg-slate-800"}
+      `}
+    >
+      <div className="flex items-center justify-between">
+        <p className="font-semibold text-lg">{pkg.order_name}</p>
+        {ignored && (
+          <span className="text-xs px-1.5 py-0.5 border border-slate-600 rounded">
+            Ignored
+          </span>
+        )}
+      </div>
       <p className="text-slate-400">{pkg.customer_name}</p>
 
       <p className="text-slate-500 text-base lg:text-lg">
@@ -31,7 +45,11 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium underline-offset-2 hover:underline text-current"
-            title={links[0].company ? `${links[0].company}${links[0].number ? ` • ${links[0].number}` : ""}` : "Track"}
+            title={
+              links[0].company
+                ? `${links[0].company}${links[0].number ? ` • ${links[0].number}` : ""}`
+                : "Track"
+            }
             onClick={(e) => e.stopPropagation()}
           >
             {carrierText}
@@ -49,7 +67,8 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
                 title={l.company ? `${l.company}${l.number ? ` • ${l.number}` : ""}` : "Track"}
                 onClick={(e) => e.stopPropagation()}
               >
-                {l.company || `Link ${i + 1}`}{i < links.length - 1 ? ", " : ""}
+                {l.company || `Link ${i + 1}`}
+                {i < links.length - 1 ? ", " : ""}
               </a>
             ))}
           </>

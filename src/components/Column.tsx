@@ -17,6 +17,27 @@ type PackageWithOptionalIds = Package & {
   flags?: string[] | null;
 };
 
+type PackageWithMeta = PackageWithOptionalIds & {
+  tracking_ignore?: boolean | null;
+  tracking_last_update?: string | null;
+  created_at?: string | null;
+};
+
+function sortForColumn(a: PackageWithMeta, b: PackageWithMeta) {
+  const aFlagged = (a.flags?.length ?? 0) > 0;
+  const bFlagged = (b.flags?.length ?? 0) > 0;
+  if (aFlagged !== bFlagged) return aFlagged ? -1 : 1; // flagged to top
+
+  const aIgnored = !!a.tracking_ignore;
+  const bIgnored = !!b.tracking_ignore;
+  if (aIgnored !== bIgnored) return aIgnored ? 1 : -1; // ignored to bottom (optional)
+
+  // Newest last_update (or created_at) first
+  const aT = Date.parse(a.tracking_last_update ?? a.created_at ?? "") || 0;
+  const bT = Date.parse(b.tracking_last_update ?? b.created_at ?? "") || 0;
+  return bT - aT;
+}
+
 function resolveOrderId(pkg: PackageWithOptionalIds): string | undefined {
   return pkg.order_id ?? pkg.shopify_order_id ?? pkg.orderId ?? undefined;
 }
@@ -129,7 +150,10 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
          qDelivered.isLoading)
       : baseLoading;
 
-  const displayData = status === "exception" ? exceptionsData : baseData;
+  const sortedDisplayData = useMemo(() => {
+    const arr = (status === "exception" ? exceptionsData : baseData) as PackageWithMeta[];
+    return [...(arr ?? [])].sort(sortForColumn);
+  }, [status, exceptionsData, baseData]);
 
   return (
     <section
@@ -142,7 +166,7 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
         id={`col-${status}`}
         className="text-sm font-bold px-3 py-2 border-b border-slate-700 uppercase"
       >
-        {status} {displayData ? `(${displayData.length})` : ""}
+        {status} {sortedDisplayData ? `(${sortedDisplayData.length})` : ""}
       </h2>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
@@ -153,11 +177,11 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
           </div>
         )}
 
-        {!isLoading && (!displayData || displayData.length === 0) && (
+        {!isLoading && (!sortedDisplayData || sortedDisplayData.length === 0) && (
           <p className="text-xs text-slate-500">No packages</p>
         )}
 
-        {displayData?.map((pkg: PackageWithOptionalIds) => {
+        {sortedDisplayData?.map((pkg: PackageWithOptionalIds) => {
           const orderId = resolveOrderId(pkg);
           const flagMeta = getFlagMeta(pkg.flags);
 
