@@ -5,7 +5,7 @@ import ChatPanel from "../components/ChatPanel";
 import SyncBar from "../components/SyncBar";
 
 export default function Dashboard({ shop }: { shop: string }) {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshToken, setRefreshToken] = useState(0); // renamed
 
   return (
     <>
@@ -18,8 +18,11 @@ export default function Dashboard({ shop }: { shop: string }) {
             <span className="text-sm sm:text-base font-semibold tracking-tight">Uppership</span>
           </a>
 
-          {/* Sync controls */}
-          <SyncBar shop={shop} onDone={() => setRefreshKey(k => k + 1)} />
+          <SyncBar
+            shop={shop}
+            onDone={() => setRefreshToken(t => t + 1)}
+            sticky={false} // if you added this prop
+          />
         </div>
       </header>
 
@@ -27,11 +30,10 @@ export default function Dashboard({ shop }: { shop: string }) {
         className="transition-[padding-right] duration-200 ease-in-out px-0"
         style={{ paddingRight: "var(--chat-panel-width, 0px)" }}
       >
-        {/* key forces remount so Kanban refetches after sync */}
-        <KanbanBoard shop={shop} key={refreshKey} />
+        {/* ✅ pass refreshToken; ❌ do NOT use key to remount */}
+        <KanbanBoard shop={shop} refreshToken={refreshToken} />
       </main>
 
-      {/* Floating chat (bubble + panel). */}
       <ChatPanel shop={shop || "uppership-demo.myshopify.com"} />
     </>
   );
