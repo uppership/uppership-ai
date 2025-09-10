@@ -3,13 +3,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type Props = {
   shop?: string;       // optional; will fallback to URL ?shop=
   onDone?: () => void; // refresh Kanban after sync completes
+  sticky?: boolean;
 };
 
 const POLL_MS_IDLE = 1000;   // 1s heartbeat for the clock
 const POLL_MS_ACTIVE = 2500; // faster poll while a sync is in progress
 const AUTO_HIDE_MS = 6000;   // auto-fade message after 6s if not expanded
 
-export default function SyncBar({ shop: propShop, onDone }: Props) {
+export default function SyncBar({ shop: propShop, onDone, sticky = true }: Props) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgExpanded, setMsgExpanded] = useState(false);
@@ -170,7 +171,7 @@ export default function SyncBar({ shop: propShop, onDone }: Props) {
 
   return (
     <div
-      className="sticky top-0 z-30 border-b border-[#1d2733] bg-[#0e141b] px-4 py-2"
+      className={`${sticky ? "sticky top-0 z-30" : ""} border-b border-[#1d2733] bg-[#0e141b] px-4 py-2`}
       style={{ paddingRight: "var(--chat-panel-width, 0px)" }}
     >
       <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-3">

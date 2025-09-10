@@ -1,20 +1,22 @@
+// KanbanBoard.tsx
 import { useCallback, useEffect, useState } from "react";
 import Column from "./Column";
 import OrderDrawer from "./OrderDrawer";
-import SyncBar from "./SyncBar";
 import type { Package } from "../types/package";
 
-// Make the array literal and derive the union type
 const STATUSES = ["ordered", "pre_transit", "in_transit", "delivered", "exception"] as const;
 type Status = typeof STATUSES[number];
 
-export default function KanbanBoard({ shop }: { shop: string }) {
+export default function KanbanBoard({
+  shop,
+  refreshToken, // 🔹 NEW: comes from Dashboard, bump when sync finishes
+}: {
+  shop: string;
+  refreshToken: number;
+}) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [packageId, setPackageId] = useState<string | null>(null);
-
-  // 🔑 bump this when the sync finishes to trigger Columns to refetch
-  const [refreshToken, setRefreshToken] = useState(0);
 
   const handleCardClick = useCallback(
     ({ orderId, packageId }: { orderId?: string; packageId: string; pkg?: Package }) => {
@@ -30,11 +32,7 @@ export default function KanbanBoard({ shop }: { shop: string }) {
     []
   );
 
-  // Called by SyncBar when msLeft returns to 0
-  const refetchKanban = useCallback(() => {
-    setRefreshToken(t => t + 1);
-  }, []);
-
+  // Resolve orderId from packageId (unchanged)
   useEffect(() => {
     if (!packageId) return;
     const abort = new AbortController();
@@ -53,9 +51,7 @@ export default function KanbanBoard({ shop }: { shop: string }) {
           console.warn("No orderId found for package", packageId);
         }
       } catch (err) {
-        if (!(err instanceof DOMException && err.name === "AbortError")) {
-          console.error(err);
-        }
+        if (!(err instanceof DOMException && err.name === "AbortError")) console.error(err);
       } finally {
         setPackageId(null);
       }
@@ -65,9 +61,6 @@ export default function KanbanBoard({ shop }: { shop: string }) {
 
   return (
     <>
-      {/* Sync bar handles kicking off sync + polling + finishing signal */}
-      <SyncBar shop={shop} onDone={refetchKanban} />
-
       <div className="w-full h-full">
         <div
           className="grid gap-4 p-4 overflow-x-auto"
@@ -79,7 +72,7 @@ export default function KanbanBoard({ shop }: { shop: string }) {
               shop={shop}
               status={status}
               onCardClick={handleCardClick}
-              refreshToken={refreshToken}   // ← NEW: triggers refetch in Column
+              refreshToken={refreshToken} // 🔹 pass through so columns refetch
             />
           ))}
         </div>
