@@ -3,6 +3,16 @@ import { usePackages } from "../hooks/usePackages";
 import Card from "./Card";
 import type { Package } from "../types/package";
 
+// at top (below imports)
+const STATUS_LABELS: Record<ColumnProps["status"], string> = {
+  ordered: "🛒 Ordered",
+  pre_transit: "📦 Pre-Transit",
+  in_transit: "🚚 In Transit",
+  delivered: "✅ Delivered",
+  exception: "⚠️ Exception",
+};
+
+
 type ColumnProps = {
   shop: string;
   status: "ordered" | "pre_transit" | "in_transit" | "delivered" | "exception";
@@ -155,6 +165,10 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
     return [...(arr ?? [])].sort(sortForColumn);
   }, [status, exceptionsData, baseData]);
 
+  const headerText = STATUS_LABELS[status];
+  const visibleCount =
+  status === "exception" ? (exceptionsData?.length ?? 0) : (sortedDisplayData?.length ?? 0);
+
   return (
     <section
       className="bg-slate-900 rounded-xl border border-slate-700 flex flex-col min-h-0"
@@ -164,9 +178,12 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
     >
       <h2
         id={`col-${status}`}
-        className="text-sm font-bold px-3 py-2 border-b border-slate-700 uppercase"
+        className="text-sm font-bold px-3 py-2 border-b border-slate-700 uppercase flex items-center justify-between"
       >
-        {status} {sortedDisplayData ? `(${sortedDisplayData.length})` : ""}
+        <span className="normal-case">{headerText}</span>
+        <span className="text-xs font-semibold text-slate-300 bg-slate-700/60 rounded-full px-2 py-0.5">
+          {visibleCount}
+        </span>
       </h2>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
