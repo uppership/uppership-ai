@@ -402,7 +402,10 @@ export default function OrderDrawer({
             </button>
 
             <button className="btn" disabled>
-              📦 Reship remainder
+              📦 Return/Reship
+            </button>
+            <button className="btn" disabled>
+              🛡️ File a Claim
             </button>
           </div>
         </section>
