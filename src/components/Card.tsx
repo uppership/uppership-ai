@@ -60,7 +60,7 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
       <p className="text-slate-400">{pkg.customer_name}</p>
 
       <p
-        className={`${isAged ? "text-red-400" : "text-slate-500"} text-base lg:text-lg`}
+        className="text-slate-500 text-base lg:text-lg"
       >
         {/* 👇 New: if no tracking, show "Ordered on {date}" when available */}
         {links.length === 0 && (
@@ -110,9 +110,8 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
         )}
       </p>
       {links.length === 0 && orderedOn && pkg.created_at && (
-        <div className="mt-0.5 text-xs text-slate-400">
-          {/* days since order */}
-          {Math.floor((Date.now() - Date.parse(pkg.created_at)) / 86400000)}d since order
+        <div className={`mt-0.5 text-xs ${isAged ? "text-red-400" : "text-slate-400"}`}>
+          {ageDays}d since order
         </div>
       )}
     </div>
