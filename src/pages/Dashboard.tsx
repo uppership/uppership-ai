@@ -45,15 +45,6 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
       ? Number(summary.fulfillmentRate).toFixed(2)
       : undefined;
 
-  const snapshot =
-    summary?.snapshot_date
-      ? new Date(summary.snapshot_date).toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        })
-      : undefined;
-
   return (
     <>
       <header
@@ -62,10 +53,15 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
       >
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <a href="/" className="flex items-center gap-2" aria-label="Go to dashboard home">
-            <span className="text-sm sm:text-base font-semibold tracking-tight">Uppership</span>
+            <img
+              src="/uppership-logo-dark.png"             // put your file in frontend/public/logo.png
+              alt="Uppership"
+              className="h-6 w-auto"      // tweak size as needed
+            />
           </a>
         </div>
       </header>
+
 
       <main
         className="transition-[padding-right] duration-200 ease-in-out px-4 sm:px-6 lg:px-8"
@@ -84,11 +80,11 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
                 aria-controls="smartmatch-panel"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-base font-semibold">📦 Uppership SmartMatch</span>
+                  <span className="text-base font-semibold">📦 SmartMatch</span>
                   {!loading && !err && percent && (
-                    <span className="text-xs rounded-full bg-white/10 px-2 py-0.5 text-white/80">
-                      {percent}% {snapshot ? `• ${snapshot}` : ""}
-                    </span>
+                    <span className="text-lg font-semibold rounded-full bg-white/10 px-3 py-1 text-white/90">
+                    {percent}%
+                    </span> 
                   )}
                 </div>
                 <svg
