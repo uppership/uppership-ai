@@ -1,5 +1,5 @@
 // src/pages/Dashboard.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import SyncBar from "../components/SyncBar";
 import KanbanBoard from "../components/KanbanBoard";
 import ChatPanel from "../components/ChatPanel";
@@ -10,11 +10,45 @@ interface Props {
   shop: string;
 }
 
+const STORAGE_KEY = "smartmatch_expanded";
+
 const Dashboard: React.FC<Props> = ({ shop }) => {
   const [refreshToken, setRefreshToken] = useState(0);
+  const [expanded, setExpanded] = useState<boolean>(false);
 
-  // Pull SmartMatch data for the header card
+  // restore persisted preference
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved != null) setExpanded(saved === "1");
+    } catch {console.warn("localStorage unavailable");}
+  }, []);
+
+  // persist preference
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, expanded ? "1" : "0");
+    } catch {console.warn("localStorage unavailable");}
+  }, [expanded]);
+
+  // Fetch SmartMatch data (even when collapsed so the header pill can show quick stats)
   const { summary, regions, loading, err } = useSmartMatch(shop, refreshToken);
+
+  const toggle = () => setExpanded((v) => !v);
+
+  const percent =
+    summary?.fulfillmentRate != null
+      ? Number(summary.fulfillmentRate).toFixed(2)
+      : undefined;
+
+  const snapshot =
+    summary?.snapshot_date
+      ? new Date(summary.snapshot_date).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : undefined;
 
   return (
     <>
@@ -23,21 +57,10 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
         style={{ paddingRight: "var(--chat-panel-width, 0px)" }}
       >
         <div className="max-w-[1400px] mx-auto flex flex-col gap-3">
-          <a
-            href="/"
-            className="flex items-center gap-2"
-            aria-label="Go to dashboard home"
-          >
-            <span className="text-sm sm:text-base font-semibold tracking-tight">
-              Uppership
-            </span>
+          <a href="/" className="flex items-center gap-2" aria-label="Go to dashboard home">
+            <span className="text-sm sm:text-base font-semibold tracking-tight">Uppership</span>
           </a>
-
-          <SyncBar
-            shop={shop}
-            onDone={() => setRefreshToken((t) => t + 1)}
-            sticky={false}
-          />
+          <SyncBar shop={shop} onDone={() => setRefreshToken((t) => t + 1)} sticky={false} />
         </div>
       </header>
 
@@ -46,39 +69,79 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
         style={{ paddingRight: "var(--chat-panel-width, 0px)" }}
       >
         <div className="max-w-[1400px] mx-auto flex flex-col gap-6 py-4">
-          {/* ===== Top: SmartMatch Score + Insights ===== */}
+          {/* ===== Collapsible SmartMatch Header ===== */}
           <section aria-label="SmartMatch insights">
-            {loading ? (
-              // skeleton
-              <div className="rounded-xl border border-white/10 bg-[#0e141b] p-4">
-                <div className="h-5 w-48 bg-white/10 rounded mb-3" />
-                <div className="space-y-3">
-                  <div className="h-4 w-3/4 bg-white/10 rounded" />
-                  <div className="h-10 w-28 bg-white/10 rounded" />
-                  <div className="h-[260px] w-full bg-white/5 rounded" />
+            <div className="rounded-xl border border-white/10 bg-[#0e141b]">
+              <button
+                type="button"
+                onClick={toggle}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                aria-expanded={expanded}
+                aria-controls="smartmatch-panel"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-semibold">📦 Uppership SmartMatch</span>
+                  {/* Quick pill with latest % and date (if available) */}
+                  {!loading && !err && percent && (
+                    <span className="text-xs rounded-full bg-white/10 px-2 py-0.5 text-white/80">
+                      {percent}% {snapshot ? `• ${snapshot}` : ""}
+                    </span>
+                  )}
+                </div>
+                <svg
+                  className={`h-5 w-5 transition-transform ${expanded ? "rotate-180" : ""}`}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.192l3.71-3.96a.75.75 0 111.08 1.04l-4.24 4.53a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+
+              {/* Collapsible content */}
+              <div
+                id="smartmatch-panel"
+                className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${
+                  expanded ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                <div className="px-4 pb-4">
+                  {loading ? (
+                    <div className="rounded-xl border border-white/10 bg-[#0e141b] p-4">
+                      <div className="h-5 w-48 bg-white/10 rounded mb-3" />
+                      <div className="space-y-3">
+                        <div className="h-4 w-3/4 bg-white/10 rounded" />
+                        <div className="h-10 w-28 bg-white/10 rounded" />
+                        <div className="h-[260px] w-full bg-white/5 rounded" />
+                      </div>
+                    </div>
+                  ) : err ? (
+                    <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-red-200">
+                      Failed to load SmartMatch: {err}
+                    </div>
+                  ) : summary && regions ? (
+                    <SmartMatchScoreCard summary={summary} regions={regions} />
+                  ) : (
+                    <div className="rounded-xl border border-white/10 bg-[#0e141b] p-4 text-white/60">
+                      No SmartMatch insights available.
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : err ? (
-              <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-red-200">
-                Failed to load SmartMatch: {err}
-              </div>
-            ) : summary && regions ? (
-              <SmartMatchScoreCard summary={summary} regions={regions} />
-            ) : (
-              <div className="rounded-xl border border-white/10 bg-[#0e141b] p-4 text-white/60">
-                No SmartMatch insights available.
-              </div>
-            )}
+            </div>
           </section>
 
-          {/* ===== Kanban ===== */}
+          {/* ===== Kanban stays below ===== */}
           <section aria-label="Operations board">
             <KanbanBoard shop={shop} refreshToken={refreshToken} />
           </section>
         </div>
       </main>
 
-      {/* Chat docked on the right (your component controls width var) */}
       <ChatPanel shop={shop || "uppership-demo.myshopify.com"} />
     </>
   );
