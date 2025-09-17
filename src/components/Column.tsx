@@ -169,7 +169,7 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
           out.sort((a, b) => {
             const aT = Date.parse(a.created_at ?? "") || 0;
             const bT = Date.parse(b.created_at ?? "") || 0;
-            if (bT !== aT) return bT - aT;
+            if (aT !== bT) return aT - bT;
             return (b.id ?? "").localeCompare(a.id ?? ""); // tie-breaker
           });
         } else {
