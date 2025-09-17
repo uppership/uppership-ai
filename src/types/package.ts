@@ -10,5 +10,6 @@ export interface Package {
     eta?: string | null;
     flags?: string[] | null;
     updated_at: string;
+    created_at?: string | null; 
   }
   
