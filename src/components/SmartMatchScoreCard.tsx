@@ -2,7 +2,7 @@ import RegionBarChart from "./RegionBarChart";
 
 export interface SmartMatchSummary {
   fulfillmentRate?: number | string;
-  snapshot_date?: string;
+  snapshot_date?: string | null;
 }
 
 export interface RegionMaps {
