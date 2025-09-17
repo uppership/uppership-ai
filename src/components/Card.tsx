@@ -3,11 +3,26 @@ import type { Package } from "../types/package";
 import { extractTrackingLinksFlexible, type TrackingEntry } from "../utils/tracking";
 
 type PackageWithTracking = Package & {
-  tracking_numbers?: TrackingEntry[] | string | null; // array or JSON string
+  tracking_numbers?: TrackingEntry[] | string | null;
   tracking_url?: string | null;
-  tracking_number?: string | null;                    // single number fallback if you have it
+  tracking_number?: string | null;
   carrier?: string | null;
+
+  // add these (they already exist on your data shape)
+  created_at?: string | null;
+  tracking_ignore?: boolean | null;
 };
+
+function formatDate(iso?: string | null) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  return new Date(t).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function Card({ pkg }: { pkg: PackageWithTracking }) {
   const links = extractTrackingLinksFlexible(pkg.tracking_numbers, {
@@ -16,10 +31,11 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
     tracking_url: pkg.tracking_url ?? null,
   });
 
-  const carrierText = pkg.carrier || (links.length ? "Track" : "No tracking");
+  const ignored = pkg.tracking_ignore ?? false;
 
-  // 👇 add a boolean
-  const ignored = (pkg as { tracking_ignore?: boolean })?.tracking_ignore ?? false;
+  // what to show as the big line under customer name
+  const carrierText = pkg.carrier || (links.length ? "Track" : "No tracking");
+  const orderedOn = formatDate(pkg.created_at);
 
   return (
     <div
@@ -35,10 +51,21 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
           </span>
         )}
       </div>
+
       <p className="text-slate-400">{pkg.customer_name}</p>
 
       <p className="text-slate-500 text-base lg:text-lg">
-        {links.length === 0 && carrierText}
+        {/* 👇 New: if no tracking, show "Ordered on {date}" when available */}
+        {links.length === 0 && (
+          <>
+            {orderedOn ? (
+              <>Ordered on {orderedOn}</>
+            ) : (
+              <>No Tracking</>
+            )}
+          </>
+        )}
+
         {links.length === 1 && (
           <a
             href={links[0].url}
@@ -55,6 +82,7 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
             {carrierText}
           </a>
         )}
+
         {links.length > 1 && (
           <>
             {links.map((l, i) => (
@@ -74,6 +102,12 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
           </>
         )}
       </p>
+      {links.length === 0 && orderedOn && pkg.created_at && (
+        <div className="mt-0.5 text-xs text-slate-400">
+          {/* days since order */}
+          {Math.floor((Date.now() - Date.parse(pkg.created_at)) / 86400000)}d since order
+        </div>
+      )}
     </div>
   );
 }
