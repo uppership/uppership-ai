@@ -1,8 +1,8 @@
 // src/pages/Dashboard.tsx
 import React, { useEffect, useState } from "react";
-import SyncBar from "../components/SyncBar";
 import KanbanBoard from "../components/KanbanBoard";
 import ChatPanel from "../components/ChatPanel";
+import SyncBar from "../components/SyncBar";
 import SmartMatchScoreCard from "../components/SmartMatchScoreCard";
 import useSmartMatch from "../hooks/useSmartMatch";
 
@@ -13,7 +13,7 @@ interface Props {
 const STORAGE_KEY = "smartmatch_expanded";
 
 const Dashboard: React.FC<Props> = ({ shop }) => {
-  const [refreshToken, setRefreshToken] = useState(0);
+  const [refreshToken, setRefreshToken] = useState(0);     // ⬅️ only for Kanban
   const [expanded, setExpanded] = useState<boolean>(false);
 
   // restore persisted preference
@@ -21,18 +21,22 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved != null) setExpanded(saved === "1");
-    } catch {console.warn("localStorage unavailable");}
+    } catch {
+      console.warn("localStorage unavailable");
+    }
   }, []);
 
   // persist preference
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, expanded ? "1" : "0");
-    } catch {console.warn("localStorage unavailable");}
+    } catch {
+      console.warn("localStorage unavailable");
+    }
   }, [expanded]);
 
-  // Fetch SmartMatch data (even when collapsed so the header pill can show quick stats)
-  const { summary, regions, loading, err } = useSmartMatch(shop, refreshToken);
+  // ⬇️ SmartMatch fetch does NOT follow Kanban sync
+  const { summary, regions, loading, err } = useSmartMatch(shop, 0);
 
   const toggle = () => setExpanded((v) => !v);
 
@@ -56,11 +60,10 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
         className="sticky top-0 z-30 border-b border-[#1d2733] bg-[#0e141b] px-4 py-3"
         style={{ paddingRight: "var(--chat-panel-width, 0px)" }}
       >
-        <div className="max-w-[1400px] mx-auto flex flex-col gap-3">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <a href="/" className="flex items-center gap-2" aria-label="Go to dashboard home">
             <span className="text-sm sm:text-base font-semibold tracking-tight">Uppership</span>
           </a>
-          <SyncBar shop={shop} onDone={() => setRefreshToken((t) => t + 1)} sticky={false} />
         </div>
       </header>
 
@@ -69,7 +72,8 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
         style={{ paddingRight: "var(--chat-panel-width, 0px)" }}
       >
         <div className="max-w-[1400px] mx-auto flex flex-col gap-6 py-4">
-          {/* ===== Collapsible SmartMatch Header ===== */}
+
+          {/* ===== SmartMatch ABOVE the Sync button ===== */}
           <section aria-label="SmartMatch insights">
             <div className="rounded-xl border border-white/10 bg-[#0e141b]">
               <button
@@ -81,7 +85,6 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
               >
                 <div className="flex items-center gap-2">
                   <span className="text-base font-semibold">📦 Uppership SmartMatch</span>
-                  {/* Quick pill with latest % and date (if available) */}
                   {!loading && !err && percent && (
                     <span className="text-xs rounded-full bg-white/10 px-2 py-0.5 text-white/80">
                       {percent}% {snapshot ? `• ${snapshot}` : ""}
@@ -102,7 +105,6 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
                 </svg>
               </button>
 
-              {/* Collapsible content */}
               <div
                 id="smartmatch-panel"
                 className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${
@@ -135,7 +137,16 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
             </div>
           </section>
 
-          {/* ===== Kanban stays below ===== */}
+          {/* ===== Sync button now only affects Kanban ===== */}
+          <section aria-label="Operations sync">
+            <SyncBar
+              shop={shop}
+              onDone={() => setRefreshToken((t) => t + 1)}
+              sticky={false}
+            />
+          </section>
+
+          {/* ===== Kanban board ===== */}
           <section aria-label="Operations board">
             <KanbanBoard shop={shop} refreshToken={refreshToken} />
           </section>
