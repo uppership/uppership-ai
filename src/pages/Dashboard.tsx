@@ -56,7 +56,7 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
             <img
               src="/uppership-logo-dark.png"             // put your file in frontend/public/logo.png
               alt="Uppership"
-              className="h-10 w-auto"      // tweak size as needed
+              className="h-12 w-auto"      // tweak size as needed
             />
           </a>
         </div>
