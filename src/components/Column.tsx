@@ -160,10 +160,26 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
          qDelivered.isLoading)
       : baseLoading;
 
-  const sortedDisplayData = useMemo(() => {
-    const arr = (status === "exception" ? exceptionsData : baseData) as PackageWithMeta[];
-    return [...(arr ?? [])].sort(sortForColumn);
-  }, [status, exceptionsData, baseData]);
+      const sortedDisplayData = useMemo(() => {
+        const arr = (status === "exception" ? exceptionsData : baseData) as PackageWithMeta[];
+        const out = [...(arr ?? [])];
+      
+        if (status === "ordered") {
+          // created_at desc (newest first), with a deterministic tie-breaker by id
+          out.sort((a, b) => {
+            const aT = Date.parse(a.created_at ?? "") || 0;
+            const bT = Date.parse(b.created_at ?? "") || 0;
+            if (bT !== aT) return bT - aT;
+            return (b.id ?? "").localeCompare(a.id ?? ""); // tie-breaker
+          });
+        } else {
+          // keep your existing per-column priority (flags → ignored → last update)
+          out.sort(sortForColumn);
+        }
+      
+        return out;
+      }, [status, exceptionsData, baseData]);
+      
 
   const headerText = STATUS_LABELS[status];
   const visibleCount =

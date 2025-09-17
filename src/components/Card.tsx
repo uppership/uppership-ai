@@ -37,8 +37,6 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
   const carrierText = pkg.carrier || (links.length ? "Track" : "No tracking");
   const orderedOn = formatDate(pkg.created_at);
 
-  console.log(pkg)
-
   return (
     <div
       className={`relative border border-slate-700 rounded-lg p-2 shadow-sm text-sm
