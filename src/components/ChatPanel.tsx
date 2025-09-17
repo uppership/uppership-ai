@@ -14,7 +14,6 @@ const QUICK_PROMPTS = [
   { label: "Tickets", q: "How many open tickets do we have and which are high priority? Show the 10 most recent." },
   { label: "💵 Savings", q: "How much money could we save if we execute all recommended rebalances?" },
   { label: "Delivery KPIs", q: "What are my delivery KPIs — average transit (calendar & business days) and delivered orders in the last 30d?" },
-  { label: "Trends (WoW)", q: "What is the week-over-week change in orders, local fulfillment rate, and estimated savings?" },
 ];
 
 type Role = "me" | "ai";
