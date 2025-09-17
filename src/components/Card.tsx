@@ -37,6 +37,11 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
   const carrierText = pkg.carrier || (links.length ? "Track" : "No tracking");
   const orderedOn = formatDate(pkg.created_at);
 
+  // 🔴 compute age in days
+  const createdAtMs = Date.parse(pkg.created_at ?? "") || 0;
+  const ageDays = createdAtMs ? Math.floor((Date.now() - createdAtMs) / 86400000) : null;
+  const isAged = (ageDays ?? 0) > 5;
+
   return (
     <div
       className={`relative border border-slate-700 rounded-lg p-2 shadow-sm text-sm
@@ -54,7 +59,9 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
 
       <p className="text-slate-400">{pkg.customer_name}</p>
 
-      <p className="text-slate-500 text-base lg:text-lg">
+      <p
+        className={`${isAged ? "text-red-400" : "text-slate-500"} text-base lg:text-lg`}
+      >
         {/* 👇 New: if no tracking, show "Ordered on {date}" when available */}
         {links.length === 0 && (
           <>
