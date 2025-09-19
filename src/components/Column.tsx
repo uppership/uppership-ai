@@ -34,18 +34,23 @@ type PackageWithMeta = PackageWithOptionalIds & {
 };
 
 function sortForColumn(a: PackageWithMeta, b: PackageWithMeta) {
-  const aFlagged = (a.flags?.length ?? 0) > 0;
-  const bFlagged = (b.flags?.length ?? 0) > 0;
-  if (aFlagged !== bFlagged) return aFlagged ? -1 : 1; // flagged to top
-
+  // 1) Ignored always to the bottom, regardless of flags/status
   const aIgnored = !!a.tracking_ignore;
   const bIgnored = !!b.tracking_ignore;
-  if (aIgnored !== bIgnored) return aIgnored ? 1 : -1; // ignored to bottom (optional)
+  if (aIgnored !== bIgnored) return aIgnored ? 1 : -1;
 
-  // Newest last_update (or created_at) first
+  // 2) Among non-ignored, flagged to the top
+  const aFlagged = (a.flags?.length ?? 0) > 0;
+  const bFlagged = (b.flags?.length ?? 0) > 0;
+  if (aFlagged !== bFlagged) return aFlagged ? -1 : 1;
+
+  // 3) Newest last_update (or created_at) first
   const aT = Date.parse(a.tracking_last_update ?? a.created_at ?? "") || 0;
   const bT = Date.parse(b.tracking_last_update ?? b.created_at ?? "") || 0;
-  return bT - aT;
+  if (bT !== aT) return bT - aT;
+
+  // 4) Deterministic tiebreaker by id
+  return String(a.id).localeCompare(String(b.id));
 }
 
 function resolveOrderId(pkg: PackageWithOptionalIds): string | undefined {
@@ -128,28 +133,24 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
   // Build exceptions view = exception status + any flagged items from other columns
   const exceptionsData = useMemo(() => {
     if (status !== "exception") return baseData;
-
+  
     const others = [
       ...(qOrdered.data ?? []),
       ...(qPreTransit.data ?? []),
       ...(qInTransit.data ?? []),
       ...(qDelivered.data ?? []),
-    ] as PackageWithOptionalIds[];
-
-    const flagged = others.filter((p) => (p.flags?.length ?? 0) > 0);
-    return dedupeById<PackageWithOptionalIds>([
-      ...((qException.data ?? []) as PackageWithOptionalIds[]),
-      ...flagged,
+    ] as PackageWithMeta[];
+  
+    const flaggedNonIgnored = others.filter(
+      (p) => (p.flags?.length ?? 0) > 0 && !p.tracking_ignore
+    );
+  
+    return dedupeById<PackageWithMeta>([
+      ...((qException.data ?? []) as PackageWithMeta[]),
+      ...flaggedNonIgnored,
     ]);
-  }, [
-    status,
-    baseData,
-    qOrdered.data,
-    qPreTransit.data,
-    qInTransit.data,
-    qDelivered.data,
-    qException.data,
-  ]);
+  }, [status, baseData, qOrdered.data, qPreTransit.data, qInTransit.data, qDelivered.data, qException.data]);
+  
 
   const isLoading =
     status === "exception"
