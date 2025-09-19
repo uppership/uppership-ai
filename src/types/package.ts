@@ -11,5 +11,6 @@ export interface Package {
     flags?: string[] | null;
     updated_at: string;
     created_at?: string | null; 
+    tracking_ignore?: boolean | null;
   }
   
