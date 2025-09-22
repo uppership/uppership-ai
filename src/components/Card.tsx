@@ -1,4 +1,4 @@
-// Card.tsx
+// src/components/Card.tsx
 import type { Package } from "../types/package";
 import { extractTrackingLinksFlexible, type TrackingEntry } from "../utils/tracking";
 
@@ -8,9 +8,11 @@ type PackageWithTracking = Package & {
   tracking_number?: string | null;
   carrier?: string | null;
 
-  // add these (they already exist on your data shape)
   created_at?: string | null;
   tracking_ignore?: boolean | null;
+
+  // ⬇️ include store for all-shops display
+  shop_domain?: string | null;
 };
 
 function formatDate(iso?: string | null) {
@@ -24,7 +26,7 @@ function formatDate(iso?: string | null) {
   });
 }
 
-export default function Card({ pkg }: { pkg: PackageWithTracking }) {
+export default function Card({ pkg, allShops = false }: { pkg: PackageWithTracking; allShops?: boolean }) {
   const links = extractTrackingLinksFlexible(pkg.tracking_numbers, {
     carrier: pkg.carrier ?? null,
     tracking_number: pkg.tracking_number ?? null,
@@ -32,8 +34,6 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
   });
 
   const ignored = pkg.tracking_ignore ?? false;
-
-  // what to show as the big line under customer name
   const carrierText = pkg.carrier || (links.length ? "Track" : "No tracking");
   const orderedOn = formatDate(pkg.created_at);
 
@@ -42,14 +42,29 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
   const ageDays = createdAtMs ? Math.floor((Date.now() - createdAtMs) / 86400000) : null;
   const isAged = (ageDays ?? 0) > 5;
 
+  const store = pkg.shop_domain?.trim();
+
   return (
     <div
       className={`relative border border-slate-700 rounded-lg p-2 shadow-sm text-sm
         ${ignored ? "bg-slate-900 opacity-60 grayscale" : "bg-slate-800"}
       `}
     >
-      <div className="flex items-center justify-between">
-        <p className="font-semibold text-lg">{pkg.order_name}</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="font-semibold text-lg truncate">{pkg.order_name}</p>
+
+          {/* ⬇️ show store badge when viewing all shops */}
+          {allShops && store && (
+            <span
+              className="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-slate-600/70 bg-slate-700/40 text-slate-200"
+              title={store}
+            >
+              {store}
+            </span>
+          )}
+        </div>
+
         {ignored && (
           <span className="text-xs px-1.5 py-0.5 border border-slate-600 rounded">
             Ignored
@@ -57,19 +72,14 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
         )}
       </div>
 
-      <p className="text-slate-400">{pkg.customer_name}</p>
+      {/* customer */}
+      <p className="text-slate-400 truncate">{pkg.customer_name}</p>
 
-      <p
-        className="text-slate-500 text-base lg:text-lg"
-      >
-        {/* 👇 New: if no tracking, show "Ordered on {date}" when available */}
+      {/* main line (tracking or ordered on …) */}
+      <p className="text-slate-500 text-base lg:text-lg">
         {links.length === 0 && (
           <>
-            {orderedOn ? (
-              <>Ordered on {orderedOn}</>
-            ) : (
-              <>No Tracking</>
-            )}
+            {orderedOn ? <>Ordered on {orderedOn}</> : <>No Tracking</>}
           </>
         )}
 
@@ -109,6 +119,7 @@ export default function Card({ pkg }: { pkg: PackageWithTracking }) {
           </>
         )}
       </p>
+
       {links.length === 0 && orderedOn && pkg.created_at && (
         <div className={`mt-0.5 text-xs ${isAged ? "text-red-400" : "text-slate-400"}`}>
           {ageDays}d since order

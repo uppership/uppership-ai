@@ -254,7 +254,7 @@ export default function Column({
                 }
               }}
             >
-              <Card pkg={pkg as Package} />
+              <Card pkg={pkg as Package} allShops={allShops} />
 
               {/* Warning icon overlay for flagged packages */}
               {flagMeta && (
