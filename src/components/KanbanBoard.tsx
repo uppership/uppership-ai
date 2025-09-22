@@ -1,22 +1,31 @@
-// KanbanBoard.tsx
-import { useCallback, useEffect, useState } from "react";
+// src/components/KanbanBoard.tsx
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Column from "./Column";
 import OrderDrawer from "./OrderDrawer";
 import type { Package } from "../types/package";
 
-const STATUSES = ["ordered", "pre_transit", "in_transit", "delivered", "exception"] as const;
-type Status = typeof STATUSES[number];
+const DEFAULT_STATUSES = ["ordered", "pre_transit", "in_transit", "delivered", "exception"] as const;
+type Status = (typeof DEFAULT_STATUSES)[number];
 
 export default function KanbanBoard({
   shop,
-  refreshToken, // 🔹 NEW: comes from Dashboard, bump when sync finishes
+  refreshToken,
+  statuses,      // ⬅️ optional override
+  allShops = false, // ⬅️ new: cross-tenant view
 }: {
-  shop: string;
+  shop?: string;
   refreshToken: number;
+  statuses?: readonly Status[];
+  allShops?: boolean;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [packageId, setPackageId] = useState<string | null>(null);
+
+  const STATUSES = useMemo(
+    () => (statuses && statuses.length ? statuses : DEFAULT_STATUSES),
+    [statuses]
+  );
 
   const handleCardClick = useCallback(
     ({ orderId, packageId }: { orderId?: string; packageId: string; pkg?: Package }) => {
@@ -32,18 +41,21 @@ export default function KanbanBoard({
     []
   );
 
-  // Resolve orderId from packageId (unchanged)
+  // Resolve orderId from packageId
   useEffect(() => {
     if (!packageId) return;
     const abort = new AbortController();
     (async () => {
       try {
-        const url = `https://go.uppership.com/public/packages/${encodeURIComponent(
-          packageId
-        )}/order?shop=${encodeURIComponent(shop)}`;
+        // 🔁 in all-shops mode, backend should be able to resolve without shop
+        const base = `https://go.uppership.com/public/packages/${encodeURIComponent(packageId)}/order`;
+        const url = allShops
+          ? `${base}`
+          : `${base}?shop=${encodeURIComponent(shop ?? "")}`;
+
         const res = await fetch(url, { signal: abort.signal });
         if (!res.ok) throw new Error(`Failed to resolve order for package ${packageId}`);
-        const json: { orderId?: string | null } = await res.json();
+        const json: { orderId?: string | null; shop?: string | null } = await res.json();
         if (json.orderId) {
           setOrderId(json.orderId);
           setDrawerOpen(true);
@@ -57,7 +69,7 @@ export default function KanbanBoard({
       }
     })();
     return () => abort.abort();
-  }, [packageId, shop]);
+  }, [packageId, shop, allShops]);
 
   return (
     <>
@@ -66,13 +78,14 @@ export default function KanbanBoard({
           className="grid gap-4 p-4 overflow-x-auto"
           style={{ gridTemplateColumns: `repeat(${STATUSES.length}, minmax(240px, 1fr))` }}
         >
-          {STATUSES.map((status: Status) => (
+          {STATUSES.map((status) => (
             <Column
-              key={status}
-              shop={shop}
+              key={`${String(status)}:${allShops ? "ALL" : shop}`}
+              shop={shop ?? ""}
               status={status}
               onCardClick={handleCardClick}
-              refreshToken={refreshToken} // 🔹 pass through so columns refetch
+              refreshToken={refreshToken}
+              allShops={allShops}     // ⬅️ pass through
             />
           ))}
         </div>
@@ -86,7 +99,7 @@ export default function KanbanBoard({
           setPackageId(null);
         }}
         orderId={orderId}
-        shop={shop}
+        shop={shop ?? ""}
       />
     </>
   );

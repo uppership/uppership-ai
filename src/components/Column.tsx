@@ -1,23 +1,26 @@
+// src/components/Column.tsx
 import { useEffect, useMemo } from "react";
 import { usePackages } from "../hooks/usePackages";
 import Card from "./Card";
 import type { Package } from "../types/package";
 
-// at top (below imports)
-const STATUS_LABELS: Record<ColumnProps["status"], string> = {
+type ColumnStatus = "ordered" | "pre_transit" | "in_transit" | "delivered" | "exception";
+
+type ColumnProps = {
+  shop: string; // empty string when in all-shops mode
+  status: ColumnStatus;
+  refreshToken: number;
+  onCardClick?: (args: { orderId?: string; packageId: string; pkg: Package }) => void;
+  /** When true, fetch across all tenants (no shop filter) */
+  allShops?: boolean;
+};
+
+const STATUS_LABELS: Record<ColumnStatus, string> = {
   ordered: "🛒 Ordered",
   pre_transit: "📦 Pre-Transit",
   in_transit: "🚚 In Transit",
   delivered: "✅ Delivered",
   exception: "⚠️ Exception",
-};
-
-
-type ColumnProps = {
-  shop: string;
-  status: "ordered" | "pre_transit" | "in_transit" | "delivered" | "exception";
-  refreshToken: number; // ← NEW
-  onCardClick?: (args: { orderId?: string; packageId: string; pkg: Package }) => void;
 };
 
 type PackageWithOptionalIds = Package & {
@@ -34,7 +37,7 @@ type PackageWithMeta = PackageWithOptionalIds & {
 };
 
 function sortForColumn(a: PackageWithMeta, b: PackageWithMeta) {
-  // 1) Ignored always to the bottom, regardless of flags/status
+  // 1) Ignored always to the bottom
   const aIgnored = !!a.tracking_ignore;
   const bIgnored = !!b.tracking_ignore;
   if (aIgnored !== bIgnored) return aIgnored ? 1 : -1;
@@ -93,24 +96,36 @@ function dedupeById<T extends { id: string }>(arr: T[]): T[] {
   return out;
 }
 
-export default function Column({ shop, status, onCardClick, refreshToken }: ColumnProps) {
+export default function Column({
+  shop,
+  status,
+  onCardClick,
+  refreshToken,
+  allShops = false,
+}: ColumnProps) {
+  /**
+   * NOTE about usePackages:
+   * If your hook supports an options arg (e.g., { allShops }), we pass it.
+   * If not, the third param will simply be ignored—no breaking change.
+   */
+
   // Fetch all statuses (keeps Rules-of-Hooks stable)
-  const qOrdered     = usePackages(shop, "ordered");
-  const qPreTransit  = usePackages(shop, "pre_transit");
-  const qInTransit   = usePackages(shop, "in_transit");
-  const qDelivered   = usePackages(shop, "delivered");
-  const qException   = usePackages(shop, "exception");
+  const qOrdered    = usePackages(shop, "ordered",    { allShops });
+  const qPreTransit = usePackages(shop, "pre_transit",{ allShops });
+  const qInTransit  = usePackages(shop, "in_transit", { allShops });
+  const qDelivered  = usePackages(shop, "delivered",  { allShops });
+  const qException  = usePackages(shop, "exception",  { allShops });
+
 
   // 🔁 When refreshToken changes, refetch every query this column can depend on
   useEffect(() => {
-    // React Query style:
     qOrdered.refetch?.();
     qPreTransit.refetch?.();
     qInTransit.refetch?.();
     qDelivered.refetch?.();
     qException.refetch?.();
 
-    // If using SWR instead, swap to:
+    // If using SWR instead, swap to mutate():
     // qOrdered.mutate?.();
     // qPreTransit.mutate?.();
     // qInTransit.mutate?.();
@@ -127,30 +142,34 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
     exception: qException,
   } as const;
 
-  const baseData: PackageWithOptionalIds[] = (byStatus[status].data ?? []) as PackageWithOptionalIds[];
+  const baseData: PackageWithOptionalIds[] =
+    (byStatus[status].data ?? []) as PackageWithOptionalIds[];
   const baseLoading = byStatus[status].isLoading;
 
-  // Build exceptions view = exception status + any flagged items from other columns
+  /**
+   * Exceptions view:
+   * - Always include true exception-status rows
+   * - Plus any flagged, non-ignored rows from the other columns
+   */
   const exceptionsData = useMemo(() => {
     if (status !== "exception") return baseData;
-  
+
     const others = [
       ...(qOrdered.data ?? []),
       ...(qPreTransit.data ?? []),
       ...(qInTransit.data ?? []),
       ...(qDelivered.data ?? []),
     ] as PackageWithMeta[];
-  
+
     const flaggedNonIgnored = others.filter(
       (p) => (p.flags?.length ?? 0) > 0 && !p.tracking_ignore
     );
-  
+
     return dedupeById<PackageWithMeta>([
       ...((qException.data ?? []) as PackageWithMeta[]),
       ...flaggedNonIgnored,
     ]);
   }, [status, baseData, qOrdered.data, qPreTransit.data, qInTransit.data, qDelivered.data, qException.data]);
-  
 
   const isLoading =
     status === "exception"
@@ -161,30 +180,30 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
          qDelivered.isLoading)
       : baseLoading;
 
-      const sortedDisplayData = useMemo(() => {
-        const arr = (status === "exception" ? exceptionsData : baseData) as PackageWithMeta[];
-        const out = [...(arr ?? [])];
-      
-        if (status === "ordered") {
-          // created_at desc (newest first), with a deterministic tie-breaker by id
-          out.sort((a, b) => {
-            const aT = Date.parse(a.created_at ?? "") || 0;
-            const bT = Date.parse(b.created_at ?? "") || 0;
-            if (aT !== bT) return aT - bT;
-            return (b.id ?? "").localeCompare(a.id ?? ""); // tie-breaker
-          });
-        } else {
-          // keep your existing per-column priority (flags → ignored → last update)
-          out.sort(sortForColumn);
-        }
-      
-        return out;
-      }, [status, exceptionsData, baseData]);
-      
+  const sortedDisplayData = useMemo(() => {
+    const arr = (status === "exception" ? exceptionsData : baseData) as PackageWithMeta[];
+    const out = [...(arr ?? [])];
+
+    if (status === "ordered") {
+      // Your current rule: created_at ASC (older first); tie-breaker by id
+      const cmp = (a: PackageWithMeta, b: PackageWithMeta) => {
+        const aT = Date.parse(a.created_at ?? "") || 0;
+        const bT = Date.parse(b.created_at ?? "") || 0;
+        if (aT !== bT) return aT - bT;
+        return (a.id ?? "").localeCompare(b.id ?? "");
+      };
+      out.sort(cmp);
+    } else {
+      // Other columns: flags → not ignored → newest update first
+      out.sort(sortForColumn);
+    }
+
+    return out;
+  }, [status, exceptionsData, baseData]);
 
   const headerText = STATUS_LABELS[status];
   const visibleCount =
-  status === "exception" ? (exceptionsData?.length ?? 0) : (sortedDisplayData?.length ?? 0);
+    status === "exception" ? (exceptionsData?.length ?? 0) : (sortedDisplayData?.length ?? 0);
 
   return (
     <section
@@ -197,7 +216,7 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
         id={`col-${status}`}
         className="text-sm font-bold px-3 py-2 border-b border-slate-700 uppercase flex items-center justify-between"
       >
-        <span className="normal-case">{headerText}</span>
+        <span className="normal-case">{headerText}{allShops && status === "exception" ? " — All Stores" : ""}</span>
         <span className="text-xs font-semibold text-slate-300 bg-slate-700/60 rounded-full px-2 py-0.5">
           {visibleCount}
         </span>
@@ -225,7 +244,9 @@ export default function Column({ shop, status, onCardClick, refreshToken }: Colu
               role="button"
               tabIndex={0}
               className="relative outline-none focus:ring-2 focus:ring-slate-500 rounded-lg"
-              onClick={() => onCardClick?.({ orderId, packageId: pkg.id as string, pkg: pkg as Package })}
+              onClick={() =>
+                onCardClick?.({ orderId, packageId: pkg.id as string, pkg: pkg as Package })
+              }
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
