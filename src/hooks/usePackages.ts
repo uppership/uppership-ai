@@ -29,13 +29,14 @@ export type FetchPackagesParams = {
   filters?: Record<string, string | number | boolean | null | undefined>;
 };
 
+// src/hooks/usePackages.ts
 export async function fetchPackages(params: FetchPackagesParams): Promise<Package[]> {
   const { shop, status, allShops, filters } = params;
 
   const qs = new URLSearchParams();
   if (status) qs.set("status", status);
   if (!allShops && shop) qs.set("shop", shop);
-
+  if (allShops) qs.set("allShops", "1");
   if (filters) {
     for (const [k, v] of Object.entries(filters)) {
       if (v !== undefined && v !== null && v !== "") qs.set(k, String(v));
@@ -45,8 +46,12 @@ export async function fetchPackages(params: FetchPackagesParams): Promise<Packag
   const url = `https://go.uppership.com/public/packages?${qs.toString()}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch packages (${res.status})`);
-  return res.json();
+
+  const body = await res.json();
+  // tolerate both: [] or { packages: [] }
+  return Array.isArray(body) ? body : Array.isArray(body?.packages) ? body.packages : [];
 }
+
 
 /**
  * usePackages — works for both single-shop and all-shops.

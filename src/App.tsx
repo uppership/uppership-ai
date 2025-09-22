@@ -1,14 +1,14 @@
 // src/App.tsx
 import Dashboard from "./pages/Dashboard";
 
-function useShopFromQuery(defaultShop = "uppership-demo.myshopify.com") {
+function useShopFromQuery() {
   const params = new URLSearchParams(window.location.search);
-  const rawShop = (params.get("shop") || "").trim();
+  const raw = (params.get("shop") || "").trim();
   const looksLikeDomain = /^[a-z0-9](?:[a-z0-9\-.]*[a-z0-9])?$/i;
-  return rawShop && looksLikeDomain.test(rawShop) ? rawShop.toLowerCase() : defaultShop;
+  return raw && looksLikeDomain.test(raw) ? raw.toLowerCase() : ""; // ← empty = all-stores
 }
 
 export default function App() {
   const shop = useShopFromQuery();
-  return <Dashboard shop={shop} />;
+  return <Dashboard shop={shop} />; // Dashboard treats "" as all-stores
 }
