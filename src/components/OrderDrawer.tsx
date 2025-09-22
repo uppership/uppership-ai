@@ -1,4 +1,4 @@
-// OrderDrawer.tsx
+// src/components/OrderDrawer.tsx
 import { useEffect, useState } from "react";
 import type { OrderDetails } from "../types/order";
 import { extractTrackingLinks } from "../utils/tracking";
@@ -56,12 +56,12 @@ export default function OrderDrawer({
   open,
   onClose,
   orderId,
-  shop,
+  shop, // can be empty in all-shops until resolved by KanbanBoard
 }: {
   open: boolean;
   onClose: () => void;
   orderId: string | null;
-  shop: string;
+  shop?: string; // make optional for type-safety
 }) {
   const [data, setData] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(false);
@@ -71,24 +71,61 @@ export default function OrderDrawer({
   const [createdTicket, setCreatedTicket] = useState<TicketSuccess | null>(null);
   const [ticketMsg, setTicketMsg] = useState<string | null>(null);
 
+  // Fetch only when we have BOTH orderId and a real shop
   useEffect(() => {
-    if (!open || !orderId) return;
+    if (!open || !orderId || !shop || !shop.trim()) return;
+
     setData(null);
     setCreatedTicket(null);
     setTicketMsg(null);
     setLoading(true);
+
     fetch(
-      `https://go.uppership.com/api/orders/${encodeURIComponent(
-        orderId
-      )}?shop=${encodeURIComponent(shop)}`
+      `https://go.uppership.com/api/orders/${encodeURIComponent(orderId)}?shop=${encodeURIComponent(
+        shop
+      )}`
     )
-      .then((r) => r.json())
-      .then((json) => setData(json))
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((json: OrderDetails) => setData(json))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [open, orderId, shop]);
 
+  // If closed or no order selected, render nothing
   if (!open || !orderId) return null;
+
+  // Waiting for resolved shop in all-shops mode: show a tiny placeholder
+  if (!shop || !shop.trim()) {
+    return (
+      <aside
+        className="fixed top-0 right-0 h-[100dvh] w-full sm:w-[460px] lg:w-[560px] z-50
+                   bg-[#0b1117] border-l border-[#1d2733] shadow-2xl flex flex-col min-h-0"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Order details"
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1d2733] bg-[#0e141b]">
+          <div className="flex flex-col">
+            <div className="text-sm text-[#9aa4af]">Order</div>
+            <div className="font-semibold">{orderId}</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md border border-[#1d2733] px-3 py-1.5 hover:-translate-y-px transition"
+            aria-label="Close details"
+          >
+            ✖
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 p-4 text-sm text-[#9aa4af]">
+          Resolving store for this order…
+        </div>
+      </aside>
+    );
+  }
 
   const o = data?.order as DrawerOrder | undefined;
   const items: OrderItem[] = Array.isArray(data?.items) ? (data!.items as OrderItem[]) : [];
@@ -138,7 +175,7 @@ export default function OrderDrawer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          shop_domain: shop,
+          shop_domain: shop, // guaranteed non-empty here
           title,
           description,
           category: "shipping",
@@ -378,13 +415,15 @@ export default function OrderDrawer({
           <div className="text-sm mb-2">
             {o?.tracking_flagged ? "This order is flagged. Review and take action." : "No flags."}
           </div>
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
             <button
               className="btn"
               onClick={async () => {
                 if (!o) return;
                 await fetch(
-                  `https://go.uppership.com/api/orders/${encodeURIComponent(o.id)}/ignore`,
+                  `https://go.uppership.com/api/orders/${encodeURIComponent(o.id)}/ignore?shop=${encodeURIComponent(
+                    shop
+                  )}`,
                   { method: "POST" }
                 );
                 setData((cur) =>

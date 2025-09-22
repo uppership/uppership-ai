@@ -7,7 +7,7 @@ import SmartMatchScoreCard from "../components/SmartMatchScoreCard";
 import useSmartMatch from "../hooks/useSmartMatch";
 
 interface Props {
-  shop?: string; // ⬅️ make optional
+  shop?: string;
 }
 
 const STORAGE_KEY = "smartmatch_expanded";
@@ -16,7 +16,7 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
   const [refreshToken, setRefreshToken] = useState(0);
   const [expanded, setExpanded] = useState<boolean>(false);
 
-  // 🚩 no domain/shop passed => all-stores mode
+  // no domain/shop passed => all-stores mode
   const allStoresMode = !shop || shop.trim() === "" || shop === "ALL";
 
   // restore persisted preference
@@ -39,7 +39,11 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
   }, [expanded]);
 
   // ✅ Only fetch SmartMatch in single-shop mode
-  const { summary, regions, loading, err } = useSmartMatch(allStoresMode ? "" : (shop as string), 0);
+  const { summary, regions, loading, err } = useSmartMatch(
+    shop || "",
+    0,
+    { enabled: !allStoresMode }   // <-- key change
+  );
 
   const toggle = () => setExpanded((v) => !v);
 
@@ -56,11 +60,7 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
       >
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <a href="/" className="flex items-center gap-2" aria-label="Go to dashboard home">
-            <img
-              src="/uppership-logo-dark.png"
-              alt="Uppership"
-              className="h-12 w-auto"
-            />
+            <img src="/uppership-logo-dark.png" alt="Uppership" className="h-12 w-auto" />
           </a>
         </div>
       </header>
@@ -71,7 +71,7 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
       >
         <div className="max-w-[1400px] mx-auto flex flex-col gap-6 py-4">
 
-          {/* ===== SmartMatch only for a single shop ===== */}
+          {/* SmartMatch only for a single shop */}
           {!allStoresMode && (
             <section aria-label="SmartMatch insights">
               <div className="rounded-xl border border-white/10 bg-[#0e141b]">
@@ -137,7 +137,7 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
             </section>
           )}
 
-          {/* ===== Sync only makes sense per-shop ===== */}
+          {/* Sync only per-shop */}
           {!allStoresMode && (
             <section aria-label="Operations sync">
               <SyncBar
@@ -148,7 +148,7 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
             </section>
           )}
 
-          {/* ===== Kanban: all shops => only exceptions column ===== */}
+          {/* Kanban: all shops => only exceptions column */}
           <section aria-label="Operations board">
             <KanbanBoard
               shop={allStoresMode ? "" : (shop as string)}
@@ -160,7 +160,7 @@ const Dashboard: React.FC<Props> = ({ shop }) => {
         </div>
       </main>
 
-      {/* Chat panel only in single-shop context to keep threads scoped */}
+      {/* Chat panel only in single-shop context */}
       {!allStoresMode && <ChatPanel shop={shop || "uppership-demo.myshopify.com"} />}
     </>
   );

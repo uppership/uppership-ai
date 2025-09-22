@@ -22,26 +22,49 @@ interface InsightsResponse {
   regions: RegionMaps;
 }
 
-export default function useSmartMatch(shop: string, refreshToken: number) {
+type SmartMatchOpts = {
+  /** Force-enable/disable fetching. Defaults to true, but requires a non-empty shop. */
+  enabled?: boolean;
+};
+
+export default function useSmartMatch(
+  shop?: string,
+  refreshToken: number = 0,
+  opts: SmartMatchOpts = {}
+) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [regions, setRegions] = useState<RegionMaps | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
+  const isEnabled = (opts.enabled ?? true) && !!(shop && shop.trim());
+
   useEffect(() => {
     let alive = true;
+
+    // If disabled (e.g., all-shops mode), clear and bail without fetching
+    if (!isEnabled) {
+      setSummary(null);
+      setRegions(null);
+      setErr(null);
+      setLoading(false);
+      return () => {
+        alive = false;
+      };
+    }
 
     (async () => {
       try {
         setLoading(true);
         setErr(null);
 
-        const res = await fetch(`https://go.uppership.com/api/insights/${encodeURIComponent(shop)}`);
+        const res = await fetch(
+          `https://go.uppership.com/api/insights/${encodeURIComponent(shop!)}`
+        );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data: InsightsResponse = await res.json();
 
-        // Minimal guards + normalization
         const s: Summary = {
           snapshot_date: data?.summary?.snapshot_date ?? null,
           fulfillmentRate:
@@ -75,7 +98,7 @@ export default function useSmartMatch(shop: string, refreshToken: number) {
     return () => {
       alive = false;
     };
-  }, [shop, refreshToken]);
+  }, [shop, refreshToken, isEnabled]);
 
   return { summary, regions, loading, err };
 }
