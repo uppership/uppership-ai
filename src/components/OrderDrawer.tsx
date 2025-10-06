@@ -70,6 +70,9 @@ export default function OrderDrawer({
   const [creatingTicket, setCreatingTicket] = useState(false);
   const [createdTicket, setCreatedTicket] = useState<TicketSuccess | null>(null);
   const [ticketMsg, setTicketMsg] = useState<string | null>(null);
+  // under other ticket state:
+  const [existingTicket, setExistingTicket] = useState<{ id: number; status?: string } | null>(null);
+
 
   // Fetch only when we have BOTH orderId and a real shop
   useEffect(() => {
@@ -78,6 +81,7 @@ export default function OrderDrawer({
     setData(null);
     setCreatedTicket(null);
     setTicketMsg(null);
+    setExistingTicket(null);
     setLoading(true);
 
     fetch(
@@ -93,6 +97,44 @@ export default function OrderDrawer({
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [open, orderId, shop]);
+
+  // After order details load, check if there is an existing (open/in_progress) ticket for this order
+useEffect(() => {
+  if (!open) return;
+  if (!shop || !shop.trim()) return;
+
+  const ord = data?.order as DrawerOrder | undefined;
+  const internalOrderId = ord?.id ?? orderId;
+  if (!internalOrderId) return;
+
+  const orderName = typeof ord?.order_name === "string" ? ord.order_name : "";
+
+  const params = new URLSearchParams({
+    shop,
+    order_id: String(internalOrderId),
+    order_name: orderName,
+    source: "order_drawer",
+    status_in: "open,in_progress",
+    limit: "1",
+  });
+
+  fetch(`https://go.uppership.com/api/tickets/search?${params.toString()}`)
+    .then((r) => (r.ok ? r.json() : Promise.reject()))
+    .then(
+      (res: { tickets?: Array<{ id: number; status?: string }> }) => {
+        const t =
+          Array.isArray(res?.tickets) && res.tickets.length > 0
+            ? res.tickets[0]
+            : undefined;
+        if (t) setExistingTicket({ id: t.id, status: t.status });
+      }
+    )
+    .catch(() => {
+      // no ticket or API error — safe to ignore
+    });
+}, [open, shop, orderId, data]);
+
+
 
   // If closed or no order selected, render nothing
   if (!open || !orderId) return null;
@@ -205,12 +247,17 @@ export default function OrderDrawer({
   }
 
   function handleTicketButtonClick() {
-    if (createdTicket?.ticket?.id) {
-      window.open(ticketUrl(createdTicket.ticket.id), "_blank", "noopener,noreferrer");
+    const id =
+      existingTicket?.id ??
+      (createdTicket?.ticket?.id as number | undefined);
+  
+    if (id) {
+      window.open(ticketUrl(id), "_blank", "noopener,noreferrer");
     } else {
       void handleCreateTicket();
     }
   }
+  
 
   return (
     <aside
@@ -356,30 +403,51 @@ export default function OrderDrawer({
               className="btn"
               onClick={handleTicketButtonClick}
               disabled={!o || creatingTicket}
-              title={createdTicket?.ticket?.id ? "View ticket" : "Create a ticket from this order"}
+              title={
+                existingTicket?.id || createdTicket?.ticket?.id
+                  ? "View ticket"
+                  : "Create a ticket from this order"
+              }
             >
               {creatingTicket
                 ? "⏳ Creating…"
-                : createdTicket?.ticket?.id
+                : existingTicket?.id || createdTicket?.ticket?.id
                 ? "🎟 View ticket"
                 : "🎟 Create ticket"}
             </button>
           </div>
 
           {/* Ticket status message */}
-          {ticketMsg && (
+          {(existingTicket || ticketMsg) && (
             <div className="mt-2 text-xs rounded border border-[#1d2733] px-2 py-1 text-[#b9c2cc]">
-              {ticketMsg}{" "}
-              {createdTicket?.ticket?.id ? (
-                <a
-                  className="underline underline-offset-2 hover:no-underline"
-                  href={ticketUrl(createdTicket.ticket.id)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Open
-                </a>
-              ) : null}
+              {existingTicket ? (
+                <>
+                  Ticket already exists (#{existingTicket.id}
+                  {existingTicket.status ? ` • ${existingTicket.status}` : ""}).{" "}
+                  <a
+                    className="underline underline-offset-2 hover:no-underline"
+                    href={ticketUrl(existingTicket.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open
+                  </a>
+                </>
+              ) : (
+                <>
+                  {ticketMsg}{" "}
+                  {createdTicket?.ticket?.id ? (
+                    <a
+                      className="underline underline-offset-2 hover:no-underline"
+                      href={ticketUrl(createdTicket.ticket.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open
+                    </a>
+                  ) : null}
+                </>
+              )}
             </div>
           )}
         </section>
